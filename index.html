@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crestville - Web Life Simulator</title>
     
-    <!-- Favicon (Sesuaikan nama file gambarnya, misal favicon.png / favicon.ico) -->
-    <link rel="icon" type="image/png" href="src/assets/favicon.png">
+    <link rel="icon" type="image/png" href="favicon.png">
 
     <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -28,33 +27,27 @@
 
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Kustom Stylesheet -->
-    <link rel="stylesheet" href="src/css/styles.css">
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-sky-500 selection:text-white">
 
-    <!-- AUDIO ELEMENTS (Backsound & Sound Effects) -->
+    <!-- AUDIO ELEMENTS -->
     <audio id="bg-audio" loop>
-        <source src="src/assets/backsound.mp3" type="audio/mpeg">
-        <source src="src/assets/backsound.ogg" type="audio/ogg">
+        <source src="backsound.mp3" type="audio/mpeg">
     </audio>
     <audio id="sfx-cash" preload="auto">
-        <source src="src/assets/cash-register.mp3" type="audio/mpeg">
+        <source src="cash-register.mp3" type="audio/mpeg">
     </audio>
     <audio id="sfx-siren" preload="auto">
-        <source src="src/assets/siren-911.mp3" type="audio/mpeg">
+        <source src="siren-911.mp3" type="audio/mpeg">
     </audio>
 
     <!-- HEADER & STATUS BAR GLOBAL -->
     <header class="sticky top-0 z-40 backdrop-blur-md bg-slate-950/80 border-b border-slate-800/80 px-4 py-3">
         <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
             
-            <!-- Logo Kota & Title -->
             <div class="flex items-center gap-3">
-                <!-- Ganti dengan tag <img> jika logo berupa file gambar (png/svg), atau tetap pakai ikon jika belum ada -->
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 overflow-hidden border border-sky-500/30">
-                    <img src="src/assets/logo.png" alt="Logo Crestville" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <img src="logo.png" alt="Logo" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <div class="hidden items-center justify-center w-full h-full"><i class="fa-solid fa-city text-lg"></i></div>
                 </div>
                 <div>
@@ -63,22 +56,17 @@
                 </div>
             </div>
 
-            <!-- Kontrol Audio & Global Status (Crest & Vitality) -->
             <div class="flex items-center flex-wrap gap-3">
-                
-                <!-- Tombol Toggle Backsound Musik -->
                 <button onclick="toggleBacksound()" id="audio-toggle-btn" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-300 flex items-center gap-2 transition-all">
                     <i id="audio-icon" class="fa-solid fa-volume-xmark text-rose-400"></i>
                     <span id="audio-text" class="hidden sm:inline">Musik: Mati</span>
                 </button>
 
-                <!-- Saldo Crest -->
                 <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-2">
                     <i class="fa-solid fa-coins text-amber-400 text-xs"></i>
                     <span class="global-crest-display text-xs font-mono font-bold text-amber-400">0 Crest</span>
                 </div>
 
-                <!-- Vitality Bar -->
                 <div class="px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-3 min-w-[150px]">
                     <i class="fa-solid fa-heart-pulse text-rose-500 text-xs"></i>
                     <div class="flex-1 space-y-1">
@@ -91,7 +79,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
 
         </div>
@@ -100,7 +87,6 @@
     <!-- KONTEN UTAMA -->
     <main class="flex-1 max-w-6xl w-full mx-auto p-4 space-y-6">
 
-        <!-- NAVIGASI TAB UTAMA -->
         <nav class="flex flex-wrap gap-2 border-b border-slate-800/60 pb-4">
             <button id="nav-citymap" onclick="switchTab('citymap')" class="nav-tab-btn px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
                 <i class="fa-solid fa-map-location-dot"></i> Peta Kota
@@ -116,7 +102,6 @@
             </button>
         </nav>
 
-        <!-- CONTAINER TAB -->
         <div class="space-y-4">
             <div id="citymap-tab" class="game-tab-content space-y-4"></div>
             <div id="jobs-tab" class="game-tab-content space-y-4 hidden"></div>
@@ -124,103 +109,40 @@
             <div id="property-tab" class="game-tab-content space-y-4 hidden"></div>
         </div>
 
-        <!-- PANEL STORAGE & PENGATURAN -->
-        <section class="mt-8 pt-6 border-t border-slate-800/80">
-            <div class="p-4 bg-slate-900/60 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400">
-                        <i class="fa-solid fa-floppy-disk"></i>
-                    </div>
-                    <div>
-                        <h4 class="font-bold text-slate-200 text-xs uppercase tracking-wider">Pengelolaan Data Permainan</h4>
-                        <p class="text-[11px] text-slate-400">Progres disimpan otomatis ke LocalStorage.</p>
-                    </div>
-                </div>
-
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="saveGame()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-sky-600/20 flex items-center gap-2">
-                        <i class="fa-solid fa-save"></i> Simpan
-                    </button>
-                    <button onclick="exportSaveFile()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-download"></i> Ekspor JSON
-                    </button>
-                    <label class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl border border-slate-700 cursor-pointer transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-upload"></i> Impor JSON
-                        <input type="file" accept=".json" onchange="importSaveFile(event)" class="hidden">
-                    </label>
-                    <button onclick="resetGame()" class="px-3.5 py-2 bg-rose-950/60 hover:bg-rose-900 text-rose-300 font-bold text-xs rounded-xl border border-rose-800 transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-trash-can"></i> Reset
-                    </button>
-                </div>
-            </div>
-        </section>
-
     </main>
 
-    <!-- FOOTER -->
     <footer class="mt-auto border-t border-slate-900 bg-slate-950 py-4 text-center text-[11px] text-slate-500 font-mono">
         <p>&copy; 2026 Kota Crestville • All Rights Reserved.</p>
     </footer>
 
-    <!-- ========================================== -->
-    <!-- AUDIO MANAGER HELPER SCRIPT                -->
-    <!-- ========================================== -->
     <script>
-        // Fungsi untuk mengontrol Backsound Musik
         function toggleBacksound() {
             const bgAudio = document.getElementById('bg-audio');
             const icon = document.getElementById('audio-icon');
             const text = document.getElementById('audio-text');
-
             if (bgAudio.paused) {
                 bgAudio.volume = 0.4;
                 bgAudio.play().then(() => {
                     icon.className = 'fa-solid fa-volume-high text-emerald-400';
                     text.textContent = 'Musik: Nyala';
-                    if (window.Toast) Toast.info('🎶 Backsound diaktifkan.');
-                }).catch(err => {
-                    console.error("Gagal memutar audio:", err);
-                    if (window.Toast) Toast.error('Gagal memutar audio backsound.');
                 });
             } else {
                 bgAudio.pause();
                 icon.className = 'fa-solid fa-volume-xmark text-rose-400';
                 text.textContent = 'Musik: Mati';
-                if (window.Toast) Toast.info('🔇 Backsound dimatikan.');
             }
         }
-
-        // Fungsi Global SFX (Sound Effects)
-        window.playCashSound = function() {
-            const sfx = document.getElementById('sfx-cash');
-            if (sfx) {
-                sfx.currentTime = 0;
-                sfx.volume = 0.6;
-                sfx.play().catch(e => console.log("SFX autoplay ditolak browser:", e));
-            }
-        };
-
-        window.playSirenSound = function() {
-            const sfx = document.getElementById('sfx-siren');
-            if (sfx) {
-                sfx.currentTime = 0;
-                sfx.volume = 0.7;
-                sfx.play().catch(e => console.log("SFX autoplay ditolak browser:", e));
-            }
-        };
     </script>
 
-    <!-- ========================================== -->
-    <!-- LOAD SCRIPT MODUL BERURUTAN                -->
-    <!-- ========================================== -->
-    <script src="src/js/utils/formatters.js"></script>
-    <script src="src/js/state.js"></script>
-    <script src="src/js/modules/admin.js"></script>
-    <script src="src/js/modules/jobs.js"></script>
-    <script src="src/js/modules/property.js"></script>
-    <script src="src/js/modules/cityMap.js"></script>
-    <script src="src/js/modules/storage.js"></script>
-    <script src="src/js/main.js"></script>
+    <!-- SCRIPT JS LANGSUNG ROOT -->
+    <script src="state.js"></script>
+    <script src="utils/formatters.js"></script>
+    <script src="modules/admin.js"></script>
+    <script src="modules/jobs.js"></script>
+    <script src="modules/property.js"></script>
+    <script src="modules/cityMap.js"></script>
+    <script src="storage.js"></script>
+    <script src="main.js"></script>
 
 </body>
 </html>
