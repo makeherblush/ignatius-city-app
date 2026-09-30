@@ -1,184 +1,153 @@
 // ==========================================
-// MODUL PENYIMPANAN DATA (STORAGE SYSTEM)
+// MODUL STORAGE & AUTO-SAVE (STORAGE.JS)
 // ==========================================
 
-const SAVE_KEY = 'CIVIL_SIM_SAVE_DATA_V1';
-const AUTO_SAVE_INTERVAL = 10000; // Auto-save setiap 10 detik
+const SAVE_KEY = 'CRESTVILLE_GAME_SAVE_V1';
+const AUTO_SAVE_INTERVAL = 30000; // Auto-save setiap 30 detik
 
 /**
- * Mengumpulkan seluruh status variabel game menjadi 1 objek data
+ * Mengumpulkan seluruh state permainan menjadi satu objek tersentralisasi
+ * @returns {Object}
  */
-function getGameStateObject() {
+function getGameState() {
     return {
-        version: '1.0.0',
         timestamp: new Date().toISOString(),
-        playerCrest: typeof playerCrest !== 'undefined' ? playerCrest : 10000,
-        playerVitality: typeof playerVitality !== 'undefined' ? playerVitality : 100,
-        playerBills: typeof playerBills !== 'undefined' ? playerBills : [],
-        playerBusinesses: typeof playerBusinesses !== 'undefined' ? playerBusinesses : [],
-        playerAdmin: typeof playerAdmin !== 'undefined' ? playerAdmin : {},
-        playerHousing: typeof playerHousing !== 'undefined' ? playerHousing : {},
-        ownedCommercials: typeof ownedCommercials !== 'undefined' ? ownedCommercials : []
+        playerCrest: window.playerCrest || 0,
+        playerVitality: window.playerVitality || 100,
+        playerAdmin: window.playerAdmin || {
+            hasKTP: false,
+            nik: null,
+            fullName: 'Warga Kota',
+            gender: 'Laki-laki',
+            city: 'Kota Crestville',
+            registeredAt: null,
+            licenses: []
+        },
+        playerCityState: window.playerCityState || {
+            currentLocation: 'city_hall',
+            lastEmergencyCall: null
+        }
     };
 }
 
 /**
- * Menyimpan data game ke localStorage
- * @param {boolean} isManual - Penanda apakah aksi dipanggil secara manual oleh tombol
+ * Menyimpan progres game ke LocalStorage
+ * @param {boolean} isAutoSave - Menandai apakah panggilan berasal dari interval otomatis
  */
-function saveGame(isManual = false) {
+function saveGame(isAutoSave = false) {
     try {
-        const data = getGameStateObject();
-        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+        const state = getGameState();
+        localStorage.setItem(SAVE_KEY, JSON.stringify(state));
 
-        updateSaveBadgeStatus(isManual ? '✅ Progress Tersimpan!' : '💾 Auto-Saved');
-
-        if (isManual) {
-            alert('🎉 Game berhasil disimpan ke browser!');
+        if (!isAutoSave && typeof Toast !== 'undefined') {
+            Toast.success('💾 Progres permainan berhasil disimpan!');
+        } else if (isAutoSave) {
+            console.log('[Auto-Save] Progres berhasil disimpan otomatis.');
         }
     } catch (error) {
         console.error('Gagal menyimpan game:', error);
-        updateSaveBadgeStatus('⚠️ Gagal Menyimpan');
+        if (!isAutoSave && typeof Toast !== 'undefined') {
+            Toast.error('Gagal menyimpan data ke LocalStorage!');
+        }
     }
 }
 
 /**
- * Memuat data simpanan dari localStorage saat game dibuka
+ * Memuat progres game dari LocalStorage
  */
 function loadGame() {
     try {
         const rawData = localStorage.getItem(SAVE_KEY);
-        if (!rawData) {
-            console.log('Belum ada save data lokal. Menggunakan nilai bawaan.');
-            return false;
-        }
+        if (!rawData) return false;
 
-        const data = JSON.parse(rawData);
+        const state = JSON.parse(rawData);
 
-        // Restore variabel global jika ada dalam simpanan
-        if (data.playerCrest !== undefined) window.playerCrest = data.playerCrest;
-        if (data.playerVitality !== undefined) window.playerVitality = data.playerVitality;
-        if (data.playerBills !== undefined) window.playerBills = data.playerBills;
-        if (data.playerBusinesses !== undefined) window.playerBusinesses = data.playerBusinesses;
-        if (data.playerAdmin !== undefined) window.playerAdmin = data.playerAdmin;
-        if (data.playerHousing !== undefined) window.playerHousing = data.playerHousing;
-        if (data.ownedCommercials !== undefined) window.ownedCommercials = data.ownedCommercials;
+        // Pulihkan nilai variabel global
+        if (state.playerCrest !== undefined) window.playerCrest = state.playerCrest;
+        if (state.playerVitality !== undefined) window.playerVitality = state.playerVitality;
+        if (state.playerAdmin) window.playerAdmin = state.playerAdmin;
+        if (state.playerCityState) window.playerCityState = state.playerCityState;
 
-        // Render ulang semua UI terkait
-        refreshAllUI();
-        console.log('Save data berhasil dimuat:', data);
+        // Render ulang UI
+        if (typeof updateUI === 'function') updateUI();
+        if (typeof renderJobsUI === 'function') renderJobsUI();
+        if (typeof renderAdminUI === 'function') renderAdminUI();
+        if (typeof renderCityMapUI === 'function') renderCityMapUI();
+
         return true;
     } catch (error) {
-        console.error('Gagal memuat save data:', error);
+        console.error('Gagal memuat data simpanan:', error);
         return false;
     }
 }
 
 /**
- * Mengeksport data simpanan menjadi file JSON yang bisa diunduh
+ * Mengeset ulang (Reset) seluruh data permainan
  */
-function exportSaveData() {
-    try {
-        const data = getGameStateObject();
-        const jsonString = JSON.stringify(data, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        
-        const fileName = `CivilSim_Save_${new Date().toISOString().slice(0, 10)}.json`;
-        const downloadLink = document.createElement('a');
-
-        downloadLink.href = URL.createObjectURL(blob);
-        downloadLink.download = fileName;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-
-        updateSaveBadgeStatus('📥 File JSON Diunduh');
-    } catch (error) {
-        alert('Gagal mengeksport data simpanan!');
-        console.error(error);
+function resetGame() {
+    if (confirm('⚠️️ Apakah kamu yakin ingin mengulang permainan dari awal? Semua data akan dihapus!')) {
+        localStorage.removeItem(SAVE_KEY);
+        location.reload();
     }
 }
 
 /**
- * Mengimpor data simpanan dari file JSON yang diunggah pemain
+ * Ekspor data simpanan ke berkas file .json
  */
-function importSaveData(event) {
+function exportSaveFile() {
+    const state = getGameState();
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state, null, 2));
+    const downloadAnchor = document.createElement('a');
+    
+    downloadAnchor.setAttribute("href", dataStr);
+    downloadAnchor.setAttribute("download", `Crestville_Save_${Date.now()}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+
+    if (typeof Toast !== 'undefined') Toast.success('📥 File simpanan berhasil diunduh!');
+}
+
+/**
+ * Impor data simpanan dari berkas .json
+ * @param {Event} event 
+ */
+function importSaveFile(event) {
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function (e) {
+    reader.onload = function(e) {
         try {
-            const data = JSON.parse(e.target.result);
-
-            // Validasi sederhana struktur file
-            if (data.playerCrest === undefined || !data.playerAdmin) {
-                throw new Error('Format file JSON tidak sesuai standar game!');
-            }
-
-            // Timpa data lokal & variabel game
-            localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-            loadGame();
-
-            alert('🚀 Import Save Data berhasil! Seluruh progress telah diperbarui.');
-            event.target.value = ''; // Reset input file
-        } catch (error) {
-            alert(`⚠️ Gagal Mengimpor Data: ${error.message}`);
-            event.target.value = '';
+            const state = JSON.parse(e.target.result);
+            localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+            
+            if (typeof Toast !== 'undefined') Toast.success('📤 Berhasil mengimpor simpanan! Memuat ulang...');
+            setTimeout(() => location.reload(), 1000);
+        } catch (err) {
+            if (typeof Toast !== 'undefined') Toast.error('File simpanan tidak valid!');
         }
     };
-
     reader.readAsText(file);
 }
 
 /**
- * Menghapus data simpanan dan mengembalikan ke keadaan awal
+ * Menginisialisasi Pemicu Simpan Otomatis & Pemuatan Awal
  */
-function resetGameSave() {
-    if (confirm('🚨 PERINGATAN: Apakah kamu yakin ingin menghapus seluruh progress game?\nData yang dihapus tidak bisa dikembalikan!')) {
-        localStorage.removeItem(SAVE_KEY);
-        location.reload(); // Reload halaman untuk mereset variabel
+function initStorageModule() {
+    // Memuat data yang ada saat aplikasi dibuka
+    const hasLoaded = loadGame();
+    if (hasLoaded && typeof Toast !== 'undefined') {
+        Toast.info('🎮 Data permainan terakhir berhasil dimuat.');
     }
-}
 
-/**
- * Helper untuk memperbarui indikator status di UI
- */
-function updateSaveBadgeStatus(message) {
-    const badge = document.getElementById('save-status-badge');
-    if (!badge) return;
-
-    badge.innerText = message;
-    setTimeout(() => {
-        badge.innerText = '💾 Auto-Save: Aktif';
-    }, 3000);
-}
-
-/**
- * Memicu pembaruan seluruh tampilan komponen UI setelah data dimuat
- */
-function refreshAllUI() {
-    if (typeof updateUI === 'function') updateUI();
-    if (typeof renderBillsUI === 'function') renderBillsUI();
-    if (typeof renderBusinessesUI === 'function') renderBusinessesUI();
-    if (typeof renderAdminUI === 'function') renderAdminUI();
-    if (typeof renderCityMapUI === 'function') renderCityMapUI();
-    if (typeof renderPropertyUI === 'function') renderPropertyUI();
-}
-
-/**
- * Inisialisasi Auto-Save & Memuat data saat aplikasi dibuka
- */
-function initSaveSystem() {
-    loadGame();
-
-    // Jalankan timer Auto-Save setiap 10 detik
+    // Jalankan interval Auto-Save
     setInterval(() => {
-        saveGame(false);
+        saveGame(true);
     }, AUTO_SAVE_INTERVAL);
 }
 
 // Inisialisasi otomatis setelah DOM siap
 document.addEventListener('DOMContentLoaded', () => {
-    initSaveSystem();
+    initStorageModule();
 });
