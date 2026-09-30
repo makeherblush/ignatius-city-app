@@ -26,6 +26,11 @@ function getGameState() {
         playerCityState: window.playerCityState || {
             currentLocation: 'city_hall',
             lastEmergencyCall: null
+        },
+        // --- TAMBAHAN: INTEGRASI STATE PROPERTI ---
+        playerProperties: window.playerProperties || {
+            activeResidence: 'boarding_room',
+            ownedProperties: ['boarding_room']
         }
     };
 }
@@ -67,12 +72,16 @@ function loadGame() {
         if (state.playerVitality !== undefined) window.playerVitality = state.playerVitality;
         if (state.playerAdmin) window.playerAdmin = state.playerAdmin;
         if (state.playerCityState) window.playerCityState = state.playerCityState;
+        
+        // --- TAMBAHAN: PULIHKAN STATE PROPERTI ---
+        if (state.playerProperties) window.playerProperties = state.playerProperties;
 
-        // Render ulang UI
+        // Render ulang UI seluruh modul
         if (typeof updateUI === 'function') updateUI();
         if (typeof renderJobsUI === 'function') renderJobsUI();
         if (typeof renderAdminUI === 'function') renderAdminUI();
         if (typeof renderCityMapUI === 'function') renderCityMapUI();
+        if (typeof renderPropertyUI === 'function') renderPropertyUI();
 
         return true;
     } catch (error) {
@@ -85,7 +94,7 @@ function loadGame() {
  * Mengeset ulang (Reset) seluruh data permainan
  */
 function resetGame() {
-    if (confirm('⚠️️ Apakah kamu yakin ingin mengulang permainan dari awal? Semua data akan dihapus!')) {
+    if (confirm('⚠ Apakah kamu yakin ingin mengulang permainan dari awal? Semua data akan dihapus!')) {
         localStorage.removeItem(SAVE_KEY);
         location.reload();
     }
