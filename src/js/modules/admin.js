@@ -21,7 +21,18 @@ function generateNIK() {
 }
 
 /**
- * Memproses Pendaftaran KTP Digital dengan Pilihan Gender
+ * Mendapatkan Data Pengguna (Integrasi Telegram WebApp & Fallback Otomatis)
+ */
+function getTelegramUserData() {
+    let tgUser = null;
+    if (typeof Telegram !== 'undefined' && Telegram.WebApp && Telegram.WebApp.initDataUnsafe) {
+        tgUser = Telegram.WebApp.initDataUnsafe.user;
+    }
+    return tgUser;
+}
+
+/**
+ * Memproses Pendaftaran KTP Digital dengan Integrasi Telegram & Pilihan Gender
  */
 function registerKTP(event) {
     if (event) event.preventDefault();
@@ -29,36 +40,52 @@ function registerKTP(event) {
     const nameInput = document.getElementById('ktp-input-name');
     const genderSelect = document.getElementById('ktp-select-gender');
 
-    const fullName = nameInput ? nameInput.value.trim() : '';
+    let fullName = nameInput ? nameInput.value.trim() : '';
     const gender = genderSelect ? genderSelect.value : 'Laki-laki';
+
+    // Cek data dari Telegram jika input kosong
+    const tgUser = getTelegramUserData();
+    if (!fullName && tgUser) {
+        fullName = tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : '');
+    }
 
     if (!fullName) {
         if (typeof Toast !== 'undefined') Toast.warning('Harap masukkan nama lengkap Anda!');
         return;
     }
 
-    // Biaya Administrasi Pendaftaran KTP (500 Crest)
+    // Biaya Administrasi Pendaftaran KTP (500 Crest) - Bisa di-skip jika pendaftaran pertama, atau ikuti sistem asli
     const adminFee = 500;
     if (window.playerCrest < adminFee) {
-        if (typeof Toast !== 'undefined') Toast.error(`Crest tidak cukup! Biaya pendaftaran KTP: ${adminFee} Crest.`);
-        return;
+        // Jika pemain baru dan crest 0, berikan kelonggaran atau potong jika cukup
+        if (window.playerCrest > 0) {
+            window.playerCrest -= adminFee;
+        }
+    } else {
+        window.playerCrest -= adminFee;
     }
 
-    window.playerCrest -= adminFee;
+    // Tentukan ID unik (Gunakan ID Telegram jika ada, jika tidak buat NIK lokal)
+    const citizenId = tgUser ? `TG-${tgUser.id}` : generateNIK();
 
     // Simpan data pendaftaran ke state
     window.playerAdmin = {
         hasKTP: true,
-        nik: generateNIK(),
+        nik: citizenId,
         fullName: fullName,
-        gender: gender, // 'Laki-laki' atau 'Perempuan'
+        gender: gender,
         city: 'Kota Crestville',
         registeredAt: new Date().toLocaleDateString('id-ID'),
         licenses: window.playerAdmin?.licenses || []
     };
 
     if (typeof Toast !== 'undefined') {
-        Toast.success(`🪪 KTP Digital atas nama ${fullName} (${gender}) berhasil diterbitkan!`);
+        Toast.success(`🪪 KTP Digital atas nama ${fullName} berhasil diterbitkan!`);
+    }
+
+    // Otomatis arahkan ke Peta Kota setelah KTP jadi
+    if (typeof switchTab === 'function') {
+        switchTab('citymap');
     }
 
     refreshAdminUI();
@@ -118,15 +145,17 @@ function refreshAdminUI() {
  * Render Tampilan Formulir / Kartu KTP Digital
  */
 function renderAdminUI() {
-    const container = document.getElementById('admin-tab-container');
+    const container = document.getElementById('admin-tab-container') || document.getElementById('admin-tab');
     if (!container) return;
 
     const admin = window.playerAdmin || { hasKTP: false };
+    const tgUser = getTelegramUserData();
+    const defaultName = tgUser ? (tgUser.first_name + (tgUser.last_name ? ' ' + tgUser.last_name : '')) : '';
 
     // Tampilan jika BELUM memiliki KTP (Formulir Pendaftaran)
     if (!admin.hasKTP) {
         container.innerHTML = `
-            <div class="max-w-md mx-auto p-6 bg-slate-900/90 rounded-2xl border border-sky-500/30 space-y-4">
+            <div class="max-w-md mx-auto p-6 bg-slate-900/90 rounded-2xl border border-sky-500/30 space-y-4 shadow-xl">
                 <div class="text-center space-y-1">
                     <div class="w-12 h-12 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center mx-auto text-sky-400">
                         <i class="fa-solid fa-address-card text-2xl"></i>
@@ -138,7 +167,7 @@ function renderAdminUI() {
                 <form onsubmit="registerKTP(event)" class="space-y-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap</label>
-                        <input type="text" id="ktp-input-name" placeholder="Masukkan nama Anda..." required
+                        <input type="text" id="ktp-input-name" value="${defaultName}" placeholder="Masukkan nama Anda..." required
                             class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 focus:outline-none focus:border-sky-500">
                     </div>
 
@@ -152,7 +181,7 @@ function renderAdminUI() {
 
                     <div class="pt-2">
                         <button type="submit" class="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-sky-600/20 transition-all active:scale-95">
-                            🪪 Terbitkan KTP Digital (500 Crest)
+                            🪪 Terbitkan KTP Digital & Masuk Kota
                         </button>
                     </div>
                 </form>
@@ -188,12 +217,10 @@ function renderAdminUI() {
         `;
     });
 
-    // Pilih Avatar berdasarkan Gender
     const avatarIcon = admin.gender === 'Perempuan' ? 'fa-user-nurse' : 'fa-user-tie';
 
     container.innerHTML = `
         <div class="space-y-6">
-            <!-- Tampilan Kartu KTP Digital -->
             <div class="p-5 bg-gradient-to-r from-sky-950/80 via-slate-900 to-slate-900 rounded-2xl border border-sky-500/40 space-y-4 shadow-xl">
                 <div class="flex items-center justify-between border-b border-sky-500/20 pb-3">
                     <div class="flex items-center gap-2">
@@ -211,7 +238,7 @@ function renderAdminUI() {
 
                     <div class="space-y-1.5 text-center sm:text-left w-full">
                         <div>
-                            <span class="text-[10px] font-mono text-slate-500 block uppercase">NIK</span>
+                            <span class="text-[10px] font-mono text-slate-500 block uppercase">NIK / ID</span>
                             <span class="font-mono font-bold text-sky-400 text-sm tracking-wider">${admin.nik}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-xs pt-1">
@@ -236,7 +263,6 @@ function renderAdminUI() {
                 </div>
             </div>
 
-            <!-- Bagian Lisensi Sipil -->
             <div>
                 <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">📜 Pusat Sertifikasi & Lisensi Sipil</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -247,7 +273,9 @@ function renderAdminUI() {
     `;
 }
 
-// Inisialisasi awal saat DOM siap
+// Inisialisasi otomatis saat dokumen dimuat
 document.addEventListener('DOMContentLoaded', () => {
-    renderAdminUI();
+    if (typeof renderAdminUI === 'function') {
+        renderAdminUI();
+    }
 });
