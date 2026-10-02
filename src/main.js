@@ -4,6 +4,7 @@
 
 let currentInputPasscode = '';
 
+// 1. AUDIO & TOAST NOTIFICATION
 function playAudioSfx(type) {
     const el = document.getElementById(`audio-${type}`);
     if (el) {
@@ -29,6 +30,7 @@ function showToast(msg, type = 'info') {
     setTimeout(() => toast.classList.add('opacity-0', '-translate-y-4'), 3000);
 }
 
+// 2. AUTO SYNC TELEGRAM PROFILE
 function syncTelegramProfile() {
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
     const regAvatar = document.getElementById('reg-avatar');
@@ -45,6 +47,7 @@ function syncTelegramProfile() {
     }
 }
 
+// 3. REGISTER HANDLER
 function handleRegisterSubmit(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
 
@@ -83,7 +86,7 @@ function handleRegisterSubmit(e) {
     return false;
 }
 
-// PASSCODE & LOCKSCREEN
+// 4. PASSCODE & LOCKSCREEN GESTURE
 function openPasscodeKeypad() {
     playAudioSfx('keypad');
     const lockscreen = document.getElementById('screen-lockscreen');
@@ -94,6 +97,45 @@ function openPasscodeKeypad() {
 
     currentInputPasscode = '';
     renderPasscodeDots();
+}
+
+function cancelPasscode() {
+    playAudioSfx('keypad');
+    const lockscreen = document.getElementById('screen-lockscreen');
+    const passcodeScreen = document.getElementById('screen-passcode');
+
+    if (passcodeScreen) { passcodeScreen.classList.add('hidden'); passcodeScreen.style.display = 'none'; }
+    if (lockscreen) { lockscreen.classList.remove('hidden'); lockscreen.style.display = 'flex'; }
+    currentInputPasscode = '';
+}
+
+function pressKey(num) {
+    if (currentInputPasscode.length < 4) {
+        playAudioSfx('keypad');
+        currentInputPasscode += String(num);
+        renderPasscodeDots();
+        if (currentInputPasscode.length === 4) setTimeout(verifyPasscode, 150);
+    }
+}
+
+function deleteKey() {
+    if (currentInputPasscode.length > 0) {
+        playAudioSfx('keypad');
+        currentInputPasscode = currentInputPasscode.slice(0, -1);
+        renderPasscodeDots();
+    }
+}
+
+function renderPasscodeDots() {
+    const dotsContainer = document.getElementById('passcode-dots');
+    if (!dotsContainer) return;
+    let html = '';
+    for (let i = 0; i < 4; i++) {
+        html += i < currentInputPasscode.length
+            ? `<div class="w-3.5 h-3.5 rounded-full bg-amber-400 border-2 border-amber-400"></div>`
+            : `<div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>`;
+    }
+    dotsContainer.innerHTML = html;
 }
 
 function verifyPasscode() {
@@ -115,35 +157,6 @@ function verifyPasscode() {
         playAudioSfx('error');
         showToast('PIN Kunci Salah!', 'error');
         currentInputPasscode = '';
-        renderPasscodeDots();
-    }
-}
-
-function renderPasscodeDots() {
-    const dotsContainer = document.getElementById('passcode-dots');
-    if (!dotsContainer) return;
-    let html = '';
-    for (let i = 0; i < 4; i++) {
-        html += i < currentInputPasscode.length
-            ? `<div class="w-3.5 h-3.5 rounded-full bg-amber-400 border-2 border-amber-400"></div>`
-            : `<div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>`;
-    }
-    dotsContainer.innerHTML = html;
-}
-
-function pressKey(num) {
-    if (currentInputPasscode.length < 4) {
-        playAudioSfx('keypad');
-        currentInputPasscode += String(num);
-        renderPasscodeDots();
-        if (currentInputPasscode.length === 4) setTimeout(verifyPasscode, 150);
-    }
-}
-
-function deleteKey() {
-    if (currentInputPasscode.length > 0) {
-        playAudioSfx('keypad');
-        currentInputPasscode = currentInputPasscode.slice(0, -1);
         renderPasscodeDots();
     }
 }
@@ -181,7 +194,58 @@ function initSwipeLockscreen() {
     lockscreen.addEventListener('click', () => openPasscodeKeypad());
 }
 
-// RENDER HOMESCREEN APPS (LENGKAP TANPA DUPLIKAT)
+// 5. WALLPAPER ENGINE & SETTINGS UI
+function setWallpaper(url) {
+    if (!url) return;
+    if (!window.gameState) window.gameState = {};
+    if (!window.gameState.system) window.gameState.system = {};
+    window.gameState.system.wallpaperUrl = url;
+    if (typeof window.saveState === 'function') window.saveState();
+    applyWallpaperToUI(url);
+    showToast('Wallpaper berhasil diganti!', 'success');
+}
+
+function applyWallpaperToUI(url) {
+    const lockEl = document.getElementById('screen-lockscreen');
+    const homeEl = document.getElementById('screen-homescreen');
+
+    const wallUrl = url || window.gameState?.system?.wallpaperUrl || 'assets/images/wallpaper.png';
+
+    if (lockEl) {
+        lockEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('${wallUrl}')`;
+    }
+    if (homeEl) {
+        homeEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)), url('${wallUrl}')`;
+    }
+}
+
+function renderSettingsUI() {
+    return `
+        <div class="space-y-4">
+            <div class="glass-ios p-4 rounded-3xl border border-sky-500/40 space-y-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-sky-400 text-base"></i>
+                    <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">Pengaturan iOS</h4>
+                </div>
+                <p class="text-[10px] text-slate-300">Kustomisasi wallpaper & tema perangkat Kota Ignatius.</p>
+            </div>
+
+            <div class="glass-ios p-4 rounded-3xl border border-white/10 space-y-3">
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-image mr-1 text-amber-400"></i> Pilih Wallpaper Preset</h4>
+                <div class="grid grid-cols-3 gap-2 pt-1">
+                    <button onclick="setWallpaper('assets/images/wallpaper.png')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Default iOS</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Cyber City</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Sunset Beach</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Neon Dark</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Nature Fog</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Mountain</button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 6. RENDER HOMESCREEN APPS
 function renderHomescreenApps() {
     const grid = document.getElementById('homescreen-app-grid');
     if (!grid) return;
@@ -223,6 +287,12 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Tas & Aset</span>
         </div>
+        <div onclick="openApp('messages')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-comments"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">IgnaTalk</span>
+        </div>
         <div onclick="openApp('app_halodoc')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
                 <i class="fa-solid fa-hospital"></i>
@@ -243,7 +313,7 @@ function renderHomescreenApps() {
         </div>
     `;
 
-    // Panel Admin khusus Owner Telegram ID 8853198899
+    // Panel Admin Khusus Owner / Admin
     const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const isOwner = (tgId && String(tgId) === '8853198899') || 
                     (window.AdminModule && typeof window.AdminModule.isAdmin === 'function' && window.AdminModule.isAdmin());
@@ -262,7 +332,7 @@ function renderHomescreenApps() {
     grid.innerHTML = appsHtml;
 }
 
-// ROUTER APLIKASI
+// 7. ROUTER UTAMA
 function openApp(appName) {
     if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
     const win = document.getElementById('screen-app-window');
@@ -272,56 +342,64 @@ function openApp(appName) {
     if (!win || !body || !title) return;
     win.classList.remove('hidden');
 
-    if (appName === 'ktp') {
-        title.textContent = 'KTP Digital Capil';
-        body.innerHTML = (window.AdminModule && typeof window.AdminModule.renderKTPAppUI === 'function') 
-            ? window.AdminModule.renderKTPAppUI() 
-            : '<div class="text-center py-10 text-rose-400">Gagal memuat KTP. Periksa file src/modules/admin.js</div>';
-    } else if (appName === 'bank') {
-        title.textContent = 'Bank Central Ignatius';
-        body.innerHTML = (window.BankModule && typeof window.BankModule.renderBankAppUI === 'function') 
-            ? window.BankModule.renderBankAppUI() 
-            : 'Bank Central Siap';
-    } else if (appName === 'citymap') {
-        title.textContent = 'Peta Navigasi Kota';
-        body.innerHTML = (window.MapModule && typeof window.MapModule.renderMapUI === 'function') 
-            ? window.MapModule.renderMapUI() 
-            : 'Peta Kota Siap';
-    } else if (appName === 'jobs') {
-        title.textContent = 'Bursa Kerja Ignatius';
-        body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderJobsAppUI === 'function') 
-            ? window.JobsModule.renderJobsAppUI() 
-            : 'Bursa Kerja Siap';
-    } else if (appName === 'shop') {
-        title.textContent = 'IgnaShopee & Toko Kota';
-        body.innerHTML = (window.ShopModule && typeof window.ShopModule.renderShopAppUI === 'function') 
-            ? window.ShopModule.renderShopAppUI() 
-            : 'Toko Kota Siap';
-    } else if (appName === 'inventory') {
-        title.textContent = 'Tas & Aset Warga';
-        body.innerHTML = (window.EconomyModule && typeof window.EconomyModule.renderInventoryAppUI === 'function') 
-            ? window.EconomyModule.renderInventoryAppUI() 
-            : 'Tas & Aset Siap';
-    } else if (appName === 'messages') {
-        title.textContent = 'IgnaTalk (Pesan)';
-        body.innerHTML = (window.MessagesModule && typeof window.MessagesModule.renderMessagesAppUI === 'function') 
-            ? window.MessagesModule.renderMessagesAppUI() 
-            : 'IgnaTalk Siap';
-    } else if (appName === 'admin_panel') {
-        title.textContent = 'Panel Control Admin';
-        body.innerHTML = (window.AdminModule && typeof window.AdminModule.renderAdminPanelUI === 'function') 
-            ? window.AdminModule.renderAdminPanelUI() 
-            : 'Panel Admin Siap';
-    } else if (appName === 'app_halodoc') {
-        title.textContent = 'Halodoc Medika Central';
-        body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderHalodocAppUI === 'function') 
-            ? window.JobsModule.renderHalodocAppUI() 
-            : 'Halodoc Siap';
-    } else if (appName === 'app_police_hub') {
-        title.textContent = 'Polres Hub & Patrolex';
-        body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderPoliceHubAppUI === 'function') 
-            ? window.JobsModule.renderPoliceHubAppUI() 
-            : 'Polres Hub Siap';
+    try {
+        if (appName === 'ktp') {
+            title.textContent = 'KTP Digital Capil';
+            body.innerHTML = (window.AdminModule && typeof window.AdminModule.renderKTPAppUI === 'function') 
+                ? window.AdminModule.renderKTPAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat KTP. Periksa src/modules/admin.js</div>';
+        } else if (appName === 'bank') {
+            title.textContent = 'Bank Central Ignatius';
+            body.innerHTML = (window.BankModule && typeof window.BankModule.renderBankAppUI === 'function') 
+                ? window.BankModule.renderBankAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Bank. Periksa src/modules/bank.js</div>';
+        } else if (appName === 'citymap') {
+            title.textContent = 'Peta Navigasi Kota';
+            body.innerHTML = (window.MapModule && typeof window.MapModule.renderMapUI === 'function') 
+                ? window.MapModule.renderMapUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Peta. Periksa src/modules/map.js</div>';
+        } else if (appName === 'jobs') {
+            title.textContent = 'Bursa Kerja Ignatius';
+            body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderJobsAppUI === 'function') 
+                ? window.JobsModule.renderJobsAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Bursa Kerja. Periksa src/modules/jobs.js</div>';
+        } else if (appName === 'shop') {
+            title.textContent = 'IgnaShopee & Toko Kota';
+            body.innerHTML = (window.ShopModule && typeof window.ShopModule.renderShopAppUI === 'function') 
+                ? window.ShopModule.renderShopAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Toko. Periksa src/modules/shop.js</div>';
+        } else if (appName === 'inventory') {
+            title.textContent = 'Tas & Aset Warga';
+            body.innerHTML = (window.EconomyModule && typeof window.EconomyModule.renderInventoryAppUI === 'function') 
+                ? window.EconomyModule.renderInventoryAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Tas. Periksa src/modules/economy.js</div>';
+        } else if (appName === 'messages') {
+            title.textContent = 'IgnaTalk (Pesan)';
+            body.innerHTML = (window.MessagesModule && typeof window.MessagesModule.renderMessagesAppUI === 'function') 
+                ? window.MessagesModule.renderMessagesAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat IgnaTalk. Periksa src/modules/messages.js</div>';
+        } else if (appName === 'admin_panel') {
+            title.textContent = 'Panel Control Admin';
+            body.innerHTML = (window.AdminModule && typeof window.AdminModule.renderAdminPanelUI === 'function') 
+                ? window.AdminModule.renderAdminPanelUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Admin Panel. Periksa src/modules/admin.js</div>';
+        } else if (appName === 'app_halodoc') {
+            title.textContent = 'Halodoc Medika Central';
+            body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderHalodocAppUI === 'function') 
+                ? window.JobsModule.renderHalodocAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Halodoc. Periksa src/modules/jobs.js</div>';
+        } else if (appName === 'app_police_hub') {
+            title.textContent = 'Polres Hub & Patrolex';
+            body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderPoliceHubAppUI === 'function') 
+                ? window.JobsModule.renderPoliceHubAppUI() 
+                : '<div class="text-center py-10 text-rose-400">Gagal memuat Polres Hub. Periksa src/modules/jobs.js</div>';
+        } else if (appName === 'settings') {
+            title.textContent = 'Pengaturan iOS';
+            body.innerHTML = renderSettingsUI();
+        }
+    } catch (err) {
+        console.error('Error opening app:', err);
+        body.innerHTML = `<div class="text-center py-10 text-rose-400">Error App: ${err.message}</div>`;
     }
 }
 
@@ -351,6 +429,7 @@ function updateUI() {
     if (nikEl) nikEl.textContent = `NIK: ${identity.nik || '-'}`;
     if (avatarEl && identity.photoUrl) avatarEl.src = identity.photoUrl;
 
+    applyWallpaperToUI();
     renderHomescreenApps();
 }
 
