@@ -200,14 +200,13 @@
                     <div id="homescreen-app-grid" class="grid grid-cols-4 gap-4 px-1 pt-2"></div>
                 </div>
 
-                <!-- Dock iOS -->
-                <div class="glass-ios p-2.5 rounded-3xl grid grid-cols-4 gap-4 border border-white/20">
-                    <div onclick="openApp('ktp')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-sky-600 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-id-card"></i></div></div>
-                    <div onclick="openApp('jobs')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-briefcase"></i></div></div>
-                    <div onclick="openApp('economy')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-wallet"></i></div></div>
-                    <div onclick="lockScreenNow()" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-rose-600 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-power-off"></i></div></div>
-                </div>
-            </div>
+                <!-- Dock iOS (Ganti Ikon Ke-3 Jadi Pesan IgnaTalk/LINE) -->
+<div class="glass-ios p-2.5 rounded-3xl grid grid-cols-4 gap-4 border border-white/20">
+    <div onclick="openApp('ktp')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-sky-600 flex items-center justify-center text-white text-xl shadow-md"><i class="fa-solid fa-id-card"></i></div></div>
+    <div onclick="openApp('jobs')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-xl shadow-md"><i class="fa-solid fa-briefcase"></i></div></div>
+    <div onclick="openApp('messages')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 text-xl shadow-md"><i class="fa-solid fa-comments"></i></div></div>
+    <div onclick="lockScreenNow()" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-rose-600 flex items-center justify-center text-white text-xl shadow-md"><i class="fa-solid fa-power-off"></i></div></div>
+</div>
 
             <!-- 5. APP WINDOW MODAL (DENGAN PADDING ATAS UNTUK MENCEGAH NUMPUK STATUS BAR) -->
             <div id="screen-app-window" class="absolute inset-0 z-30 bg-slate-950 flex flex-col hidden pt-10">
