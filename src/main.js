@@ -4,7 +4,7 @@
 
 let currentInputPasscode = '';
 
-// Play Sound Effect dengan Fallback Audio Element / Web Audio
+// Play Sound Effect dengan Fallback Safe
 function playAudioSfx(type) {
     const el = document.getElementById(`audio-${type}`);
     if (el) {
@@ -20,6 +20,8 @@ function showToast(msg, type = 'info') {
     const icon = document.getElementById('toast-ios-icon');
     const text = document.getElementById('toast-ios-msg');
 
+    if (!toast) return;
+
     text.textContent = msg;
     if (type === 'success') icon.className = 'fa-solid fa-circle-check text-emerald-400 text-base shrink-0';
     else if (type === 'error') icon.className = 'fa-solid fa-circle-xmark text-rose-400 text-base shrink-0';
@@ -32,23 +34,27 @@ function showToast(msg, type = 'info') {
 // Passcode Keypad System
 function openPasscodeKeypad() {
     playAudioSfx('keypad');
-    document.getElementById('screen-passcode').classList.remove('hidden');
+    const keypadScreen = document.getElementById('screen-passcode');
+    if (keypadScreen) keypadScreen.classList.remove('hidden');
     currentInputPasscode = '';
     renderPasscodeDots();
 }
 
 function cancelPasscode() {
     playAudioSfx('keypad');
-    document.getElementById('screen-passcode').classList.add('hidden');
+    const keypadScreen = document.getElementById('screen-passcode');
+    if (keypadScreen) keypadScreen.classList.add('hidden');
     currentInputPasscode = '';
 }
 
 function pressKey(num) {
     if (currentInputPasscode.length < 4) {
         playAudioSfx('keypad');
-        currentInputPasscode += num;
+        currentInputPasscode += String(num);
         renderPasscodeDots();
-        if (currentInputPasscode.length === 4) setTimeout(verifyPasscode, 150);
+        if (currentInputPasscode.length === 4) {
+            setTimeout(verifyPasscode, 150);
+        }
     }
 }
 
@@ -62,6 +68,7 @@ function deleteKey() {
 
 function renderPasscodeDots() {
     const dotsContainer = document.getElementById('passcode-dots');
+    if (!dotsContainer) return;
     let html = '';
     for (let i = 0; i < 4; i++) {
         html += i < currentInputPasscode.length
@@ -71,13 +78,25 @@ function renderPasscodeDots() {
     dotsContainer.innerHTML = html;
 }
 
+// FUNGSI VERIFIKASI PIN (FIXED NO-BUG)
 function verifyPasscode() {
-    if (currentInputPasscode === window.gameState.user.identity.pinPasscode) {
+    // Ambil PIN terdaftar dengan Fallback bertingkat agar tidak pernah undefined
+    const savedPin = String(
+        (window.gameState && window.gameState.user && window.gameState.user.identity && window.gameState.user.identity.pinPasscode) ||
+        (window.gameState && window.gameState.user && window.gameState.user.identity && window.gameState.user.identity.pin) ||
+        '1234'
+    );
+
+    if (String(currentInputPasscode).trim() === savedPin.trim()) {
         playAudioSfx('unlock');
         document.getElementById('screen-passcode').classList.add('hidden');
         document.getElementById('screen-lockscreen').classList.add('hidden');
         document.getElementById('screen-homescreen').classList.remove('hidden');
-        document.getElementById('island-lock-icon').className = 'fa-solid fa-lock-open text-emerald-400';
+        
+        const lockIcon = document.getElementById('island-lock-icon');
+        if (lockIcon) lockIcon.className = 'fa-solid fa-lock-open text-emerald-400';
+        
+        currentInputPasscode = '';
     } else {
         playAudioSfx('error');
         showToast('PIN Kunci Salah!', 'error');
@@ -91,7 +110,89 @@ function lockScreenNow() {
     closeApp();
     document.getElementById('screen-homescreen').classList.add('hidden');
     document.getElementById('screen-lockscreen').classList.remove('hidden');
-    document.getElementById('island-lock-icon').className = 'fa-solid fa-lock text-amber-400';
+    
+    const lockIcon = document.getElementById('island-lock-icon');
+    if (lockIcon) lockIcon.className = 'fa-solid fa-lock text-amber-400';
+}
+
+// SISTEM GESTURE SWIPE UP LOCKSCREEN iOS
+function initSwipeLockscreen() {
+    const lockscreen = document.getElementById('screen-lockscreen');
+    if (!lockscreen) return;
+
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+
+    // Support Touch Screen (HP)
+    lockscreen.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        isDragging = true;
+        lockscreen.style.transition = 'none';
+    }, { passive: true });
+
+    lockscreen.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        currentY = e.touches[0].clientY;
+        const diffY = currentY - startY;
+        if (diffY < 0) {
+            lockscreen.style.transform = `translateY(${diffY}px)`;
+        }
+    }, { passive: true });
+
+    lockscreen.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        const diffY = currentY - startY;
+        lockscreen.style.transition = 'transform 0.3s ease-out';
+        
+        if (diffY < -80) { // Swipe up melebihi 80px
+            lockscreen.style.transform = 'translateY(-100%)';
+            setTimeout(() => {
+                lockscreen.style.transform = 'translateY(0)';
+                openPasscodeKeypad();
+            }, 250);
+        } else {
+            lockscreen.style.transform = 'translateY(0)';
+        }
+        startY = 0;
+        currentY = 0;
+    });
+
+    // Support Mouse Drag (Desktop PC)
+    lockscreen.addEventListener('mousedown', (e) => {
+        startY = e.clientY;
+        isDragging = true;
+        lockscreen.style.transition = 'none';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        currentY = e.clientY;
+        const diffY = currentY - startY;
+        if (diffY < 0) {
+            lockscreen.style.transform = `translateY(${diffY}px)`;
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        const diffY = currentY - startY;
+        lockscreen.style.transition = 'transform 0.3s ease-out';
+
+        if (diffY < -80) {
+            lockscreen.style.transform = 'translateY(-100%)';
+            setTimeout(() => {
+                lockscreen.style.transform = 'translateY(0)';
+                openPasscodeKeypad();
+            }, 250);
+        } else {
+            lockscreen.style.transform = 'translateY(0)';
+        }
+        startY = 0;
+        currentY = 0;
+    });
 }
 
 // Render Homescreen App Grid
@@ -118,10 +219,16 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Crest Pay</span>
         </div>
+        <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">Panel Admin</span>
+        </div>
     `;
 
     // Dynamic Apps Profesi
-    const unlockedApps = window.gameState.jobState ? window.gameState.jobState.unlockedCustomApps : [];
+    const unlockedApps = (window.gameState && window.gameState.jobState) ? window.gameState.jobState.unlockedCustomApps : [];
     if (unlockedApps.includes('app_imc_dispatch')) {
         appsHtml += `
             <div onclick="openApp('imc_dispatch')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
@@ -142,6 +249,7 @@ function openApp(appName) {
     const title = document.getElementById('app-window-title');
     const body = document.getElementById('app-window-body');
 
+    if (!win) return;
     win.classList.remove('hidden');
 
     if (appName === 'ktp') {
@@ -153,6 +261,9 @@ function openApp(appName) {
     } else if (appName === 'economy') {
         title.textContent = 'Crest Pay & Market';
         body.innerHTML = window.EconomyModule.renderCrestPayAppUI();
+    } else if (appName === 'admin_panel') {
+        title.textContent = 'Panel Control Admin';
+        body.innerHTML = window.AdminModule.renderAdminPanelUI();
     } else if (appName === 'imc_dispatch') {
         title.textContent = 'IMC Dispatch (Dokter)';
         body.innerHTML = `
@@ -168,7 +279,8 @@ function openApp(appName) {
 }
 
 function closeApp() {
-    document.getElementById('screen-app-window').classList.add('hidden');
+    const win = document.getElementById('screen-app-window');
+    if (win) win.classList.add('hidden');
 }
 
 function handleRegisterSubmit(e) {
@@ -185,17 +297,29 @@ function handleRegisterSubmit(e) {
 }
 
 function updateUI() {
-    document.getElementById('display-crest').textContent = window.gameState.crest.toLocaleString();
-    document.getElementById('display-vit-text').textContent = `${window.gameState.vitality} / 100`;
-    document.getElementById('display-vit-bar').style.width = `${window.gameState.vitality}%`;
+    if (!window.gameState) return;
 
-    const identity = window.gameState.user.identity;
-    document.getElementById('home-user-name').textContent = identity.fullName || 'Warga Ignatius';
-    document.getElementById('home-user-nik').textContent = `NIK: ${identity.nik || '-'}`;
-    document.getElementById('lockscreen-citizen-name').textContent = identity.fullName || 'Warga Terdaftar';
+    const crestEl = document.getElementById('display-crest');
+    const vitTextEl = document.getElementById('display-vit-text');
+    const vitBarEl = document.getElementById('display-vit-bar');
 
-    if (identity.photoUrl) {
-        document.getElementById('home-user-avatar').src = identity.photoUrl;
+    if (crestEl) crestEl.textContent = (window.gameState.crest || 0).toLocaleString();
+    if (vitTextEl) vitTextEl.textContent = `${window.gameState.vitality || 0} / 100`;
+    if (vitBarEl) vitBarEl.style.width = `${window.gameState.vitality || 0}%`;
+
+    const identity = (window.gameState.user && window.gameState.user.identity) ? window.gameState.user.identity : {};
+    
+    const nameEl = document.getElementById('home-user-name');
+    const nikEl = document.getElementById('home-user-nik');
+    const lockNameEl = document.getElementById('lockscreen-citizen-name');
+    const avatarEl = document.getElementById('home-user-avatar');
+
+    if (nameEl) nameEl.textContent = identity.fullName || 'Warga Ignatius';
+    if (nikEl) nikEl.textContent = `NIK: ${identity.nik || '-'}`;
+    if (lockNameEl) lockNameEl.textContent = identity.fullName || 'Warga Terdaftar';
+
+    if (avatarEl && identity.photoUrl) {
+        avatarEl.src = identity.photoUrl;
     }
 
     renderHomescreenApps();
@@ -206,14 +330,19 @@ function updateClock() {
     const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
     const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' });
 
-    document.getElementById('ios-clock-status').textContent = timeStr;
-    document.getElementById('ios-clock-big').textContent = timeStr;
-    document.getElementById('ios-date-display').textContent = dateStr;
+    const clockStatus = document.getElementById('ios-clock-status');
+    const clockBig = document.getElementById('ios-clock-big');
+    const dateDisp = document.getElementById('ios-date-display');
+
+    if (clockStatus) clockStatus.textContent = timeStr;
+    if (clockBig) clockBig.textContent = timeStr;
+    if (dateDisp) dateDisp.textContent = dateStr;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     updateClock();
     setInterval(updateClock, 1000);
+    initSwipeLockscreen();
 
     if (!window.gameState.registered) {
         document.getElementById('screen-register').classList.remove('hidden');
