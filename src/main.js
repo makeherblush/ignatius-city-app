@@ -424,6 +424,18 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Bursa Kerja</span>
         </div>
+        <div onclick="openApp('app_halodoc')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-hospital"></i>
+            </div>
+            <span class="text-[10px] font-medium text-rose-300 drop-shadow">Halodoc</span>
+        </div>
+        <div onclick="openApp('app_police_hub')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <span class="text-[10px] font-medium text-indigo-300 drop-shadow">Polres Hub</span>
+        </div>
         <div onclick="openApp('settings')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
                 <i class="fa-solid fa-gear"></i>
@@ -431,6 +443,25 @@ function renderHomescreenApps() {
             <span class="text-[10px] font-medium text-white drop-shadow">Pengaturan</span>
         </div>
     `;
+
+    // CHECK OWNER DIRECTLY VIA TELEGRAM ID OR ADMIN MODULE
+    const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    const isOwner = (tgId && String(tgId) === '8853198899') || 
+                    (window.AdminModule && typeof window.AdminModule.isAdmin === 'function' && window.AdminModule.isAdmin());
+
+    if (isOwner) {
+        appsHtml += `
+            <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+                <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <span class="text-[10px] font-medium text-white drop-shadow">Panel Admin</span>
+            </div>
+        `;
+    }
+
+    grid.innerHTML = appsHtml;
+}
 
     // PANEL ADMIN: HANYA MUNCUL JIKA USER ADALAH ADMIN / OWNER!
     if (window.AdminModule && window.AdminModule.isAdmin && window.AdminModule.isAdmin()) {
