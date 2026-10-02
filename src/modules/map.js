@@ -5,8 +5,14 @@
 const MapModule = {
     renderMapUI() {
         let locationsHtml = '';
+        const locations = window.LOCATIONS_DATABASE || [
+            { id: 'loc_capil', name: 'Kantor Dukcapil', category: 'Layanan Publik', desc: 'Pengurusan KTP Digital, KK, & Pernikahan', iconFa: 'fa-landmark', color: 'bg-sky-600' },
+            { id: 'loc_polres', name: 'Polres Ignatius', category: 'Keamanan', desc: 'Ujian SIM, izin senjata api, & kepolisian', iconFa: 'fa-shield-halved', color: 'bg-indigo-600' },
+            { id: 'loc_hospital', name: 'RSUD Kota Ignatius', category: 'Kesehatan', desc: 'IGD 24 jam & konsultasi medis', iconFa: 'fa-hospital', color: 'bg-rose-600' },
+            { id: 'loc_minimarket', name: 'Minimarket Serba Ada', category: 'Perbelanjaan', desc: 'Beli makanan, minuman, & perlengkapan', iconFa: 'fa-basket-shopping', color: 'bg-amber-600' }
+        ];
 
-        (window.LOCATIONS_DATABASE || []).forEach(loc => {
+        locations.forEach(loc => {
             locationsHtml += `
                 <div onclick="MapModule.openLocationDetail('${loc.id}')" class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-sky-400/50 transition-all">
                     <div class="flex items-center gap-3">
@@ -44,8 +50,19 @@ const MapModule = {
     },
 
     openLocationDetail(locId) {
-        const loc = (window.LOCATIONS_DATABASE || []).find(l => l.id === locId);
-        if (!loc) return;
+        const locations = window.LOCATIONS_DATABASE || [];
+        let loc = locations.find(l => l.id === locId);
+
+        if (!loc) {
+            loc = {
+                id: locId,
+                name: 'Lokasi Kota',
+                category: 'Fasilitas Umum',
+                desc: 'Tempat umum di Kota Ignatius',
+                iconFa: 'fa-building',
+                color: 'bg-sky-600'
+            };
+        }
 
         const body = document.getElementById('app-window-body');
         const title = document.getElementById('app-window-title');
@@ -53,66 +70,44 @@ const MapModule = {
 
         title.textContent = loc.name;
 
-        // Render Lisensi / Layanan
+        // Render Lisensi / Layanan SIM
         let licensesHtml = '';
         if (loc.licenses && loc.licenses.length > 0) {
             loc.licenses.forEach(licId => {
-                const lic = (window.LICENSES_DATABASE || []).find(l => l.id === licId);
-                const owned = (window.gameState?.user?.legal?.licenses || []).includes(licId);
+                const lic = (window.LICENSES_DATABASE || []).find(l => l.id === licId) || { id: licId, name: licId, cost: 1500 };
+                const owned = (window.gameState?.user?.legal?.licenses || []).includes(lic.id);
 
-                if (lic) {
-                    licensesHtml += `
-                        <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
-                            <div>
-                                <h5 class="font-bold text-white text-[11px]">${lic.name}</h5>
-                                <span class="text-[9px] text-slate-400 font-mono">${lic.cost > 0 ? lic.cost.toLocaleString() + ' C' : 'Gratis'}</span>
-                            </div>
-                            ${owned ? `
-                                <span class="text-[9px] text-emerald-400 font-bold px-2 py-0.5 bg-emerald-500/20 rounded">Aktif</span>
-                            ` : `
-                                <button onclick="AdminModule.applyLicense('${lic.id}'); MapModule.openLocationDetail('${loc.id}');" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow-md">
-                                    Ambil
-                                </button>
-                            `}
+                licensesHtml += `
+                    <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
+                        <div>
+                            <h5 class="font-bold text-white text-[11px]">${lic.name}</h5>
+                            <span class="text-[9px] text-slate-400 font-mono">${lic.cost > 0 ? lic.cost.toLocaleString() + ' C' : 'Gratis'}</span>
                         </div>
-                    `;
-                }
+                        ${owned ? `
+                            <span class="text-[9px] text-emerald-400 font-bold px-2 py-0.5 bg-emerald-500/20 rounded">Aktif / Dimiliki</span>
+                        ` : `
+                            <button onclick="AdminModule.applyLicense('${lic.id}'); MapModule.openLocationDetail('${loc.id}');" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow-md">
+                                Terbitkan
+                            </button>
+                        `}
+                    </div>
+                `;
             });
         }
 
-        // Render Toko Barang (FIXED CLICK CLICKABLE)
+        // Render Barang Toko / Makanan
         let itemsHtml = '';
         if (loc.items && loc.items.length > 0) {
             loc.items.forEach(itemId => {
-                const item = (window.ITEMS_DATABASE || []).find(i => i.id === itemId);
-                if (item) {
-                    itemsHtml += `
-                        <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
-                            <div>
-                                <h5 class="font-bold text-white text-[11px]">${item.name}</h5>
-                                <p class="text-[9px] text-slate-400">${item.desc}</p>
-                            </div>
-                            <button onclick="EconomyModule.buyItem('${item.id}', '${loc.id}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] rounded-lg shadow-md">
-                                Beli (${item.price.toLocaleString()} C)
-                            </button>
-                        </div>
-                    `;
-                }
-            });
-        }
-
-        // Render Aktivitas Tempat
-        let activitiesHtml = '';
-        if (loc.activities && loc.activities.length > 0) {
-            loc.activities.forEach(act => {
-                activitiesHtml += `
+                const item = (window.ITEMS_DATABASE || []).find(i => i.id === itemId) || { id: itemId, name: itemId, price: 500, desc: 'Barang minimarket' };
+                itemsHtml += `
                     <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
                         <div>
-                            <h5 class="font-bold text-white text-[11px]">${act.name}</h5>
-                            <p class="text-[9px] text-slate-400">${act.desc}</p>
+                            <h5 class="font-bold text-white text-[11px]">${item.name}</h5>
+                            <p class="text-[9px] text-slate-400">${item.desc}</p>
                         </div>
-                        <button onclick="MapModule.doActivity('${act.id}', '${loc.id}')" class="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[10px] rounded-lg shadow-md">
-                            Mulai
+                        <button onclick="EconomyModule.buyItem('${item.id}', '${loc.id}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] rounded-lg shadow-md">
+                            Beli (${item.price.toLocaleString()} C)
                         </button>
                     </div>
                 `;
@@ -134,13 +129,6 @@ const MapModule = {
                     </div>
                 </div>
 
-                ${activitiesHtml ? `
-                    <div class="space-y-2">
-                        <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-wider">🎣 Aktivitas Tempat</h4>
-                        <div class="space-y-2">${activitiesHtml}</div>
-                    </div>
-                ` : ''}
-
                 ${licensesHtml ? `
                     <div class="space-y-2">
                         <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">📜 Pengurusan SIM & Layanan</h4>
@@ -156,25 +144,6 @@ const MapModule = {
                 ` : ''}
             </div>
         `;
-    },
-
-    doActivity(actId, locId) {
-        if (actId === 'act_fish') {
-            if ((window.gameState?.vitality || 0) < 8) {
-                if (typeof showToast === 'function') showToast('Vitality tidak cukup buat mancing!', 'error');
-                return;
-            }
-            window.gameState.vitality -= 8;
-            window.gameState.crest = (window.gameState.crest || 0) + 350;
-            if (typeof window.saveState === 'function') window.saveState();
-            if (typeof showToast === 'function') showToast('Dapat Ikan Gurame! Dijual (+350 C, -8% Vit)', 'success');
-        } else if (actId === 'act_relax') {
-            window.gameState.vitality = Math.min(100, (window.gameState.vitality || 0) + 15);
-            if (typeof window.saveState === 'function') window.saveState();
-            if (typeof showToast === 'function') showToast('Bersantai di taman (+15% Vit)', 'success');
-        }
-
-        this.openLocationDetail(locId);
     }
 };
 
