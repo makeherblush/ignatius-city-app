@@ -25,7 +25,7 @@
     <div id="iphone-chassis" class="w-full sm:max-w-[390px] h-screen sm:h-[844px] bg-black sm:rounded-[50px] sm:border-[10px] sm:border-slate-800 shadow-2xl flex flex-col relative overflow-hidden">
         
         <!-- STATUS BAR iOS & DYNAMIC ISLAND -->
-        <div class="absolute top-0 left-0 right-0 z-50 px-6 pt-3 pb-2 flex justify-between items-center text-white text-xs font-semibold pointer-events-none">
+        <div class="absolute top-0 left-0 right-0 z-50 px-6 pt-3 pb-2 flex justify-between items-center text-white text-xs font-semibold pointer-events-none bg-gradient-to-b from-black/60 to-transparent">
             <span id="ios-clock-status">12:00</span>
             
             <div class="w-28 h-7 bg-black rounded-full flex items-center justify-between px-2.5 border border-white/10 shadow-md pointer-events-auto">
@@ -41,12 +41,20 @@
             </div>
         </div>
 
+        <!-- TOAST NOTIFICATION INSIDE PHONE SCREEN -->
+        <div id="toast-ios" class="absolute top-12 left-1/2 -translate-x-1/2 z-[60] w-[88%] pointer-events-none transition-all duration-300 opacity-0 -translate-y-4">
+            <div id="toast-ios-box" class="glass-ios p-3 rounded-2xl flex items-center gap-3 text-xs font-medium text-white shadow-2xl border border-white/20">
+                <i id="toast-ios-icon" class="fa-solid fa-circle-info text-sky-400 text-base shrink-0"></i>
+                <span id="toast-ios-msg" class="leading-tight">Pesan Notifikasi</span>
+            </div>
+        </div>
+
         <!-- SCREEN CONTAINER -->
         <div class="flex-1 w-full h-full relative overflow-hidden pt-10 pb-6">
 
             <!-- 1. REGISTRATION SCREEN -->
-            <div id="screen-register" class="absolute inset-0 z-40 bg-slate-950 p-6 flex flex-col justify-between overflow-y-auto hidden">
-                <div class="space-y-6 pt-6">
+            <div id="screen-register" class="absolute inset-0 z-40 bg-slate-950 p-6 flex flex-col justify-between overflow-y-auto hidden pt-12">
+                <div class="space-y-6 pt-2">
                     <div class="text-center space-y-2">
                         <div class="w-20 h-20 mx-auto rounded-3xl bg-sky-500/10 p-0.5 border border-sky-500/30">
                             <img id="reg-avatar" src="assets/images/avatars/default.png" class="w-full h-full object-cover rounded-[22px]" alt="Avatar">
@@ -81,67 +89,65 @@
                 </div>
             </div>
 
-          <!-- 2. LOCKSCREEN iOS -->
-<div id="screen-lockscreen" class="absolute inset-0 z-30 bg-cover bg-center flex flex-col justify-between p-6 text-white cursor-grab active:cursor-grabbing" style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('assets/images/wallpaper.png');">
-    <div class="pt-10 text-center space-y-1">
-        <p id="ios-date-display" class="text-xs font-semibold text-slate-200 tracking-wide uppercase">Rabu, 30 September</p>
-        <h1 id="ios-clock-big" class="text-6xl font-bold tracking-tight text-white">12:00</h1>
-    </div>
+            <!-- 2. LOCKSCREEN iOS -->
+            <div id="screen-lockscreen" class="absolute inset-0 z-30 bg-cover bg-center flex flex-col justify-between p-6 text-white cursor-grab active:cursor-grabbing transition-all duration-300">
+                <div class="pt-10 text-center space-y-1">
+                    <p id="ios-date-display" class="text-xs font-semibold text-slate-200 tracking-wide uppercase">Rabu, 30 September</p>
+                    <h1 id="ios-clock-big" class="text-6xl font-bold tracking-tight text-white">12:00</h1>
+                </div>
 
-    <div class="glass-ios p-4 rounded-3xl space-y-2 border border-white/15">
-        <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-2xl bg-sky-500/20 flex items-center justify-center text-sky-400">
-                <i class="fa-solid fa-city text-base"></i>
+                <div class="glass-ios p-4 rounded-3xl space-y-2 border border-white/15">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-2xl bg-sky-500/20 flex items-center justify-center text-sky-400">
+                            <i class="fa-solid fa-city text-base"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Kota Ignatius</h4>
+                            <p class="text-[10px] text-slate-300" id="lockscreen-citizen-name">Warga Terdaftar</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div onclick="openPasscodeKeypad()" class="text-center pb-6">
+                    <p class="text-[11px] font-medium text-slate-300 tracking-wider flex items-center justify-center gap-1 animate-bounce">
+                        <i class="fa-solid fa-chevron-up text-[10px]"></i>
+                        Usap Ke Atas Untuk Buka
+                    </p>
+                </div>
             </div>
-            <div>
-                <h4 class="text-xs font-bold text-white">Kota Ignatius</h4>
-                <p class="text-[10px] text-slate-300" id="lockscreen-citizen-name">Warga Terdaftar</p>
+
+            <!-- 3. PASSCODE KEYPAD -->
+            <div id="screen-passcode" class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-2xl p-6 flex flex-col justify-between items-center text-white hidden pt-12">
+                <div class="pt-8 text-center space-y-3">
+                    <i class="fa-solid fa-lock text-xl text-amber-400"></i>
+                    <h3 class="text-sm font-semibold">Masukkan PIN Kunci</h3>
+                    <div class="flex justify-center gap-3 py-2" id="passcode-dots">
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+                    </div>
+                </div>
+
+                <div class="w-full max-w-[260px] grid grid-cols-3 gap-4 mb-6">
+                    <button onclick="pressKey('1')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">1</button>
+                    <button onclick="pressKey('2')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">2</button>
+                    <button onclick="pressKey('3')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">3</button>
+                    <button onclick="pressKey('4')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">4</button>
+                    <button onclick="pressKey('5')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">5</button>
+                    <button onclick="pressKey('6')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">6</button>
+                    <button onclick="pressKey('7')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">7</button>
+                    <button onclick="pressKey('8')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">8</button>
+                    <button onclick="pressKey('9')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">9</button>
+                    <button onclick="cancelPasscode()" class="w-16 h-16 text-xs text-slate-400 mx-auto flex items-center justify-center">Batal</button>
+                    <button onclick="pressKey('0')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">0</button>
+                    <button onclick="deleteKey()" class="w-16 h-16 text-slate-300 mx-auto flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
+                </div>
             </div>
-        </div>
-    </div>
-
-    <!-- HANYA TEKS & CHEVRON (TANPA GARIS DOUBLE) -->
-    <div onclick="openPasscodeKeypad()" class="text-center pb-6">
-        <p class="text-[11px] font-medium text-slate-300 tracking-wider flex items-center justify-center gap-1 animate-bounce">
-            <i class="fa-solid fa-chevron-up text-[10px]"></i>
-            Usap Ke Atas Untuk Buka
-        </p>
-    </div>
-</div>
-            
-           <!-- 3. PASSCODE KEYPAD (BG GELAP SOLID AGAR TIDAK TEMBUS/TRANSPARAN) -->
-<div id="screen-passcode" class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-2xl p-6 flex flex-col justify-between items-center text-white hidden transition-all duration-300">
-    <div class="pt-12 text-center space-y-3">
-        <i class="fa-solid fa-lock text-xl text-amber-400"></i>
-        <h3 class="text-sm font-semibold">Masukkan PIN Kunci</h3>
-        <div class="flex justify-center gap-3 py-2" id="passcode-dots">
-            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-        </div>
-    </div>
-
-    <div class="w-full max-w-[260px] grid grid-cols-3 gap-4 mb-6">
-        <button onclick="pressKey('1')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">1</button>
-        <button onclick="pressKey('2')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">2</button>
-        <button onclick="pressKey('3')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">3</button>
-        <button onclick="pressKey('4')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">4</button>
-        <button onclick="pressKey('5')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">5</button>
-        <button onclick="pressKey('6')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">6</button>
-        <button onclick="pressKey('7')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">7</button>
-        <button onclick="pressKey('8')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">8</button>
-        <button onclick="pressKey('9')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">9</button>
-        <button onclick="cancelPasscode()" class="w-16 h-16 text-xs text-slate-400 mx-auto flex items-center justify-center">Batal</button>
-        <button onclick="pressKey('0')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">0</button>
-        <button onclick="deleteKey()" class="w-16 h-16 text-slate-300 mx-auto flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
-    </div>
-</div>
 
             <!-- 4. HOMESCREEN iOS -->
-            <div id="screen-homescreen" class="absolute inset-0 z-20 bg-cover bg-center p-5 flex flex-col justify-between hidden" style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)), url('assets/images/wallpaper.png');">
-                <div class="space-y-4 pt-4">
-                    <!-- Widget Status Warga -->
+            <div id="screen-homescreen" class="absolute inset-0 z-20 bg-cover bg-center p-5 flex flex-col justify-between hidden pt-12" style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)), url('assets/images/wallpaper.png');">
+                <div class="space-y-4 pt-2">
                     <div class="glass-ios p-3.5 rounded-3xl space-y-2 border border-white/20">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2.5">
@@ -168,29 +174,26 @@
                         </div>
                     </div>
 
-                    <!-- App Grid Container -->
-                    <div id="homescreen-app-grid" class="grid grid-cols-4 gap-4 px-1 pt-2">
-                        <!-- Rendered Dynamic Grid Apps -->
-                    </div>
+                    <div id="homescreen-app-grid" class="grid grid-cols-4 gap-4 px-1 pt-2"></div>
                 </div>
 
                 <!-- Dock iOS -->
                 <div class="glass-ios p-2.5 rounded-3xl grid grid-cols-4 gap-4 border border-white/20">
-                    <div onclick="openApp('ktp')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-sky-500/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-id-card"></i></div></div>
-                    <div onclick="openApp('jobs')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-emerald-500/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-briefcase"></i></div></div>
-                    <div onclick="openApp('economy')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-amber-500/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-wallet"></i></div></div>
-                    <div onclick="lockScreenNow()" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-rose-600/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-power-off"></i></div></div>
+                    <div onclick="openApp('ktp')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-sky-600 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-id-card"></i></div></div>
+                    <div onclick="openApp('jobs')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-briefcase"></i></div></div>
+                    <div onclick="openApp('economy')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-wallet"></i></div></div>
+                    <div onclick="lockScreenNow()" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-rose-600 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-power-off"></i></div></div>
                 </div>
             </div>
 
-            <!-- 5. APP WINDOW MODAL -->
-            <div id="screen-app-window" class="absolute inset-0 z-30 bg-slate-950 flex flex-col hidden">
+            <!-- 5. APP WINDOW MODAL (DENGAN PADDING ATAS UNTUK MENCEGAH NUMPUK STATUS BAR) -->
+            <div id="screen-app-window" class="absolute inset-0 z-30 bg-slate-950 flex flex-col hidden pt-10">
                 <div class="px-4 py-3 bg-slate-900/90 border-b border-white/10 flex items-center justify-between shrink-0">
-                    <button onclick="closeApp()" class="text-xs font-semibold text-sky-400 flex items-center gap-1">
+                    <button onclick="closeApp()" class="text-xs font-semibold text-sky-400 flex items-center gap-1 py-1">
                         <i class="fa-solid fa-chevron-left"></i> Homescreen
                     </button>
                     <h3 id="app-window-title" class="text-xs font-bold text-white uppercase tracking-wider">Aplikasi</h3>
-                    <div class="w-8"></div>
+                    <div class="w-12"></div>
                 </div>
 
                 <div id="app-window-body" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
@@ -205,15 +208,7 @@
 
     </div>
 
-    <!-- TOAST NOTIFICATION iOS -->
-    <div id="toast-ios" class="fixed top-12 left-1/2 -translate-x-1/2 z-50 max-w-xs w-full px-4 pointer-events-none transition-all duration-300 opacity-0 translate-y-2">
-        <div id="toast-ios-box" class="glass-ios p-3 rounded-2xl flex items-center gap-3 text-xs font-medium text-white shadow-2xl border border-white/20">
-            <i id="toast-ios-icon" class="fa-solid fa-circle-info text-sky-400 text-base shrink-0"></i>
-            <span id="toast-ios-msg">Pesan Notifikasi</span>
-        </div>
-    </div>
-
-    <!-- SCRIPT LOADER (URUTAN TERSTRUKTUR & SAFE) -->
+    <!-- SCRIPT LOADER -->
     <script src="src/state.js"></script>
     <script src="src/data/licensesData.js"></script>
     <script src="src/data/itemsData.js"></script>
