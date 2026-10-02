@@ -1,54 +1,25 @@
 // ==========================================
-// MODUL BANK DIGITAL & KEUTANGAN (BANK.JS)
+// MODUL BANK DIGITAL & TABUNGAN (BANK.JS)
 // ==========================================
 
 const BankModule = {
     renderBankAppUI() {
-        const crest = window.gameState.crest || 0;
-        const bankAccount = window.gameState.economy.bankAccount || { accountNumber: 'CP-90128', pin: '1234' };
-        const identity = window.gameState.user.identity || {};
-        const txs = window.gameState.economy.transactions || [];
-
-        let txHtml = '';
-        if (txs.length === 0) {
-            txHtml = `<p class="text-[10px] text-slate-500 text-center py-3">Belum ada riwayat transaksi bank.</p>`;
-        } else {
-            txs.slice(0, 5).forEach(tx => {
-                txHtml += `
-                    <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
-                            </div>
-                            <div>
-                                <h5 class="font-bold text-white text-[11px]">${tx.title}</h5>
-                                <span class="text-[9px] text-slate-400 font-mono">${tx.timestamp} • Target: ${tx.toNik}</span>
-                            </div>
-                        </div>
-                        <span class="font-mono font-bold text-rose-400 text-xs">-${tx.amount.toLocaleString()} C</span>
-                    </div>
-                `;
-            });
-        }
+        const crest = window.gameState?.crest || 0;
+        const savings = window.gameState?.economy?.savingsBalance || 0;
+        const identity = window.gameState?.user?.identity || {};
+        const bankAccount = window.gameState?.economy?.bankAccount || { accountNumber: 'CP-90128' };
 
         return `
             <div class="space-y-4">
-                <!-- BLACK CARD DEBIT DIGITAL -->
-                <div class="w-full h-48 rounded-3xl p-4 bg-gradient-to-tr from-slate-950 via-slate-900 to-amber-950 border border-amber-500/40 shadow-2xl flex flex-col justify-between relative overflow-hidden">
+                <!-- BLACK CARD UTAMA -->
+                <div class="w-full h-44 rounded-3xl p-4 bg-gradient-to-tr from-slate-950 via-slate-900 to-amber-950 border border-amber-500/40 shadow-2xl flex flex-col justify-between relative overflow-hidden">
                     <div class="flex justify-between items-center">
                         <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest">BANK CENTRAL IGNATIUS</span>
                         <i class="fa-solid fa-building-columns text-amber-400 text-base"></i>
                     </div>
 
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-7 rounded-md bg-amber-400/80 border border-amber-300 flex items-center justify-center">
-                            <div class="w-6 h-4 border border-slate-900/60 rounded-xs"></div>
-                        </div>
-                        <i class="fa-solid fa-wifi text-slate-400 text-xs rotate-90"></i>
-                    </div>
-
                     <div>
-                        <span class="text-[8px] text-slate-400 uppercase font-mono block">Saldo Utama Rekening</span>
+                        <span class="text-[8px] text-slate-400 uppercase font-mono block">Saldo Rekening Utama</span>
                         <h2 class="text-2xl font-mono font-bold text-white tracking-wider">${crest.toLocaleString()} <span class="text-xs text-amber-400">Crest</span></h2>
                     </div>
 
@@ -64,38 +35,70 @@ const BankModule = {
                     </div>
                 </div>
 
-                <!-- MENU AKSI QUICK BANK -->
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="EconomyModule.showTransferPrompt()" class="p-3 glass-ios rounded-2xl border border-amber-500/30 flex items-center gap-3 hover:bg-amber-500/10">
-                        <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-sm">
-                            <i class="fa-solid fa-paper-plane"></i>
+                <!-- DOMPET TABUNGAN / DEPOSITO -->
+                <div class="glass-ios p-4 rounded-3xl border border-emerald-500/30 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider block">💰 Saldo Tabungan Berbunga</span>
+                            <h3 class="text-lg font-mono font-bold text-white">${savings.toLocaleString()} <span class="text-xs text-emerald-400">Crest</span></h3>
                         </div>
-                        <div class="text-left">
-                            <h5 class="text-xs font-bold text-white">Transfer</h5>
-                            <span class="text-[9px] text-slate-400">Kirim Crest P2P</span>
-                        </div>
-                    </button>
+                        <span class="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-[8px] font-bold rounded-lg border border-emerald-500/30">Bunga 5%/Shift</span>
+                    </div>
 
-                    <button onclick="showToast('Fitur Deposito Bunga 5%/Shift Aktif!', 'success')" class="p-3 glass-ios rounded-2xl border border-emerald-500/30 flex items-center gap-3 hover:bg-emerald-500/10">
-                        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm">
-                            <i class="fa-solid fa-piggy-bank"></i>
-                        </div>
-                        <div class="text-left">
-                            <h5 class="text-xs font-bold text-white">Tabungan</h5>
-                            <span class="text-[9px] text-slate-400">Bunga Shift 5%</span>
-                        </div>
-                    </button>
-                </div>
-
-                <!-- RIWAYAT MUTASI -->
-                <div class="space-y-2">
-                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📊 Mutasi Transaksi Terakhir</h4>
-                    <div class="space-y-2">
-                        ${txHtml}
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button onclick="BankModule.depositSavingsPrompt()" class="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-arrow-down text-emerald-300"></i> Setor Tabungan
+                        </button>
+                        <button onclick="BankModule.withdrawSavingsPrompt()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl shadow-lg border border-white/10 flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-arrow-up text-amber-300"></i> Tarik Saldo
+                        </button>
                     </div>
                 </div>
             </div>
         `;
+    },
+
+    depositSavingsPrompt() {
+        const amountStr = prompt("Masukkan Nominal Crest yang Mau Disimpan ke Tabungan:");
+        if (!amountStr) return;
+        const amount = parseInt(amountStr);
+
+        if (isNaN(amount) || amount <= 0) {
+            if (typeof showToast === 'function') showToast('Nominal tidak valid!', 'error');
+            return;
+        }
+
+        if (window.gameState.crest < amount) {
+            if (typeof showToast === 'function') showToast('Saldo Utama tidak cukup!', 'error');
+            return;
+        }
+
+        window.gameState.crest -= amount;
+        if (!window.gameState.economy.savingsBalance) window.gameState.economy.savingsBalance = 0;
+        window.gameState.economy.savingsBalance += amount;
+
+        if (typeof window.saveState === 'function') window.saveState();
+        if (typeof showToast === 'function') showToast(`Berhasil menyimpan ${amount.toLocaleString()} C ke Tabungan!`, 'success');
+        openApp('bank');
+    },
+
+    withdrawSavingsPrompt() {
+        const savings = window.gameState?.economy?.savingsBalance || 0;
+        const amountStr = prompt(`Masukkan Nominal yang Mau Ditarik (Maks: ${savings.toLocaleString()} C):`);
+        if (!amountStr) return;
+        const amount = parseInt(amountStr);
+
+        if (isNaN(amount) || amount <= 0 || amount > savings) {
+            if (typeof showToast === 'function') showToast('Nominal tarik tidak valid!', 'error');
+            return;
+        }
+
+        window.gameState.economy.savingsBalance -= amount;
+        window.gameState.crest += amount;
+
+        if (typeof window.saveState === 'function') window.saveState();
+        if (typeof showToast === 'function') showToast(`Berhasil menarik ${amount.toLocaleString()} C ke Saldo Utama!`, 'success');
+        openApp('bank');
     }
 };
 
