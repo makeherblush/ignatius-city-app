@@ -48,6 +48,10 @@ body {
     animation: bounceUp 2s infinite;
 }
 
+#screen-lockscreen {
+    will-change: transform;
+    touch-action: none; /* Mencegah layar browser kepotong/ke-refresh saat di-swipe */
+}
 @keyframes bounceUp {
     0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
     40% { transform: translateY(-8px); }
