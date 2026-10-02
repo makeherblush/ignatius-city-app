@@ -278,13 +278,18 @@ function renderSettingsUI() {
 }
 
 // ------------------------------------------
-// RENDER HOMESCREEN APPS
-// ------------------------------------------
+// Render Homescreen App Grid (Panel Admin disembunyikan untuk Warga Biasa)
 function renderHomescreenApps() {
     const grid = document.getElementById('homescreen-app-grid');
     if (!grid) return;
 
     let appsHtml = `
+        <div onclick="openApp('citymap')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-cyan-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-map-location-dot"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">Peta Kota</span>
+        </div>
         <div onclick="openApp('ktp')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-sky-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
                 <i class="fa-solid fa-address-card"></i>
@@ -309,14 +314,21 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Pengaturan</span>
         </div>
-        <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
-            <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <span class="text-[10px] font-medium text-white drop-shadow">Panel Admin</span>
-        </div>
     `;
 
+    // FITUR ADMINISTRATOR: HANYA MUNCUL JIKA USER ADALAH ADMIN / OWNER!
+    if (window.AdminModule && window.AdminModule.isAdmin && window.AdminModule.isAdmin()) {
+        appsHtml += `
+            <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+                <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <span class="text-[10px] font-medium text-white drop-shadow">Panel Admin</span>
+            </div>
+        `;
+    }
+
+    // Dynamic Apps Profesi
     const unlockedApps = (window.gameState && window.gameState.jobState) ? window.gameState.jobState.unlockedCustomApps : [];
     if (unlockedApps.includes('app_imc_dispatch')) {
         appsHtml += `
@@ -341,7 +353,10 @@ function openApp(appName) {
     if (!win) return;
     win.classList.remove('hidden');
 
-    if (appName === 'ktp') {
+    if (appName === 'citymap') {
+        title.textContent = 'Peta Navigasi Kota';
+        body.innerHTML = window.MapModule.renderMapUI();
+    } else if (appName === 'ktp') {
         title.textContent = 'KTP Digital Capil';
         body.innerHTML = window.AdminModule.renderKTPAppUI();
     } else if (appName === 'jobs') {
@@ -356,17 +371,6 @@ function openApp(appName) {
     } else if (appName === 'admin_panel') {
         title.textContent = 'Panel Control Admin';
         body.innerHTML = window.AdminModule.renderAdminPanelUI();
-    } else if (appName === 'imc_dispatch') {
-        title.textContent = 'IMC Dispatch (Dokter)';
-        body.innerHTML = `
-            <div class="glass-ios p-4 rounded-3xl border border-rose-500/40 space-y-3">
-                <h4 class="text-xs font-bold text-rose-400">🚨 PUSAT DISPATCH MEDIS (CODE BLUE)</h4>
-                <p class="text-[10px] text-slate-300">Siaga darurat medis pingsan sekota.</p>
-                <button onclick="playAudioSfx('siren'); showToast('Sirene Ambulans diaktifkan!', 'error');" class="w-full py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg">
-                    Aktifkan Sirene Ambulans
-                </button>
-            </div>
-        `;
     }
 }
 
