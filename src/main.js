@@ -373,6 +373,26 @@ function openApp(appName) {
     } else if (appName === 'admin_panel') {
         title.textContent = 'Panel Control Admin';
         body.innerHTML = window.AdminModule.renderAdminPanelUI();
+    } 
+    // --- APK INTERAKTIF PROFESI ---
+    else if (appName === 'app_halodoc') {
+        title.textContent = 'Halodoc Medika Central';
+        body.innerHTML = window.JobsModule.renderHalodocAppUI();
+    } else if (appName === 'app_police_hub') {
+        title.textContent = 'Polres Hub & Patrolex';
+        body.innerHTML = window.JobsModule.renderPoliceHubAppUI();
+    } else if (appName === 'app_legal_court') {
+        title.textContent = 'E-Court Pengadilan Kota';
+        body.innerHTML = window.JobsModule.renderLegalCourtAppUI();
+    } else if (appName === 'app_corp_manager') {
+        title.textContent = 'Ignatius Corp Manager';
+        body.innerHTML = window.JobsModule.renderCorpManagerAppUI();
+    } else if (appName === 'app_driver_express') {
+        title.textContent = 'Driver Express Terminal';
+        body.innerHTML = window.JobsModule.renderDriverExpressAppUI();
+    } else if (appName === 'app_press_news') {
+        title.textContent = 'Warta Ignatius Pers';
+        body.innerHTML = window.JobsModule.renderPressNewsAppUI();
     }
 }
 
