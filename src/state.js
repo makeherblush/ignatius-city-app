@@ -8,7 +8,7 @@ const DEFAULT_GAME_STATE = {
     registered: false,
 
     system: {
-        ownerId: 'TG-123456789',
+        ownerId: 'TG-8853198899',
         adminIds: [],
         wallpaperUrl: 'assets/images/wallpaper.png' // Wallpaper default
     },
