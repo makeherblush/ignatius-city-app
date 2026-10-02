@@ -88,12 +88,11 @@ const AdminModule = {
         return true;
     },
 
-    // Dukcapil Pernikahan
     registerMarriage() {
-        const spouseName = prompt("Masukkan Nama Lengkap Pasangan:");
-        if (!spouseName) return;
-        const spouseNik = prompt("Masukkan NIK Pasangan:");
+        const spouseNik = prompt("Masukkan NIK / ID Telegram Pasangan:");
         if (!spouseNik) return;
+        
+        const spouseName = prompt("Masukkan Nama Pasangan (Opsional):") || `Warga (${spouseNik})`;
 
         if (!window.gameState.user.family) window.gameState.user.family = {};
         window.gameState.user.family.spouseName = spouseName;
@@ -101,16 +100,16 @@ const AdminModule = {
         window.gameState.user.family.marriageDate = new Date().toLocaleDateString('id-ID');
 
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Status Pernikahan dicatat! Pasangan: ${spouseName}`, 'success');
+        if (typeof showToast === 'function') showToast(`Pernikahan tersinkronisasi dengan NIK ${spouseNik}!`, 'success');
         if (typeof openApp === 'function') openApp('ktp');
     },
 
-    // Dukcapil Tambah Anggota KK
+    // Dukcapil Tambah Anggota KK (Direct NIK Sync)
     addChildToKK() {
-        const childName = prompt("Masukkan Nama Anggota Keluarga / Anak:");
-        if (!childName) return;
-        const childNik = prompt("Masukkan NIK Anggota / Anak:");
+        const childNik = prompt("Masukkan NIK / ID Telegram Anggota Keluarga:");
         if (!childNik) return;
+
+        const childName = prompt("Nama Anggota Keluarga (Opsional):") || `Anggota (${childNik})`;
 
         if (!window.gameState.user.family) window.gameState.user.family = {};
         if (!window.gameState.user.family.childrenNiks) window.gameState.user.family.childrenNiks = [];
@@ -118,10 +117,10 @@ const AdminModule = {
         window.gameState.user.family.childrenNiks.push({ name: childName, nik: childNik });
         if (typeof window.saveState === 'function') window.saveState();
 
-        if (typeof showToast === 'function') showToast(`Anggota keluarga ${childName} berhasil ditambahkan!`, 'success');
+        if (typeof showToast === 'function') showToast(`Anggota keluarga NIK ${childNik} berhasil ditambahkan!`, 'success');
         if (typeof openApp === 'function') openApp('ktp');
     },
-
+    
     // RENDER KTP DIGITAL 3D FLIP CARD
     renderKTPAppUI() {
         const user = window.gameState?.user || {};
