@@ -515,6 +515,11 @@ function openApp(appName) {
         body.innerHTML = (window.EconomyModule && typeof window.EconomyModule.renderInventoryAppUI === 'function') 
             ? window.EconomyModule.renderInventoryAppUI() 
             : 'Sistem Inventaris Siap';
+    } else if (appName === 'shop') {
+    title.textContent = 'IgnaShopee & Toko Kota';
+    body.innerHTML = (window.ShopModule && typeof window.ShopModule.renderShopAppUI === 'function') 
+        ? window.ShopModule.renderShopAppUI() 
+        : 'Sistem Toko Siap';
     }
 }
 
