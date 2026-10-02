@@ -8,9 +8,9 @@ const DEFAULT_GAME_STATE = {
     registered: false,
 
     system: {
-        ownerId: 'TG-8853198899',
+        ownerId: 'TG-8853198899', // Masukkan NIK / ID Telegram Owner di sini
         adminIds: [],
-        wallpaperUrl: 'assets/images/wallpaper.png' // Wallpaper default
+        wallpaperUrl: 'assets/images/wallpaper.png'
     },
 
     user: {
@@ -26,6 +26,7 @@ const DEFAULT_GAME_STATE = {
             kkNumber: null,
             isHeadOfFamily: true,
             spouseNik: null,
+            spouseName: null,
             marriageDate: null,
             childrenNiks: []
         },
@@ -34,6 +35,14 @@ const DEFAULT_GAME_STATE = {
             criminalRecord: [],
             skckStatus: 'CLEAN'
         }
+    },
+
+    // Status Hukum & Penjara
+    law: {
+        isJailed: false,
+        jailMinutes: 0,
+        fines: 0,
+        reason: ''
     },
 
     economy: {
@@ -64,7 +73,7 @@ const DEFAULT_GAME_STATE = {
 
 class GameStateManager {
     constructor() {
-        this.STORAGE_KEY = 'IGNATIUS_MASTER_STATE_V6';
+        this.STORAGE_KEY = 'IGNATIUS_MASTER_STATE_V7';
         this.data = JSON.parse(JSON.stringify(DEFAULT_GAME_STATE));
         this.load();
     }
@@ -73,7 +82,13 @@ class GameStateManager {
         try {
             const saved = localStorage.getItem(this.STORAGE_KEY);
             if (saved) {
-                this.data = { ...DEFAULT_GAME_STATE, ...JSON.parse(saved) };
+                const parsed = JSON.parse(saved);
+                this.data = { ...DEFAULT_GAME_STATE, ...parsed };
+                
+                // FORCE SYNC OWNER ID dari DEFAULT_GAME_STATE
+                if (DEFAULT_GAME_STATE.system.ownerId !== 'TG-123456789') {
+                    this.data.system.ownerId = DEFAULT_GAME_STATE.system.ownerId;
+                }
             }
         } catch (e) {
             console.error('[GameState] Load error:', e);
