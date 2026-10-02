@@ -340,11 +340,25 @@ function updateClock() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Inisialisasi & Auto-Expand Telegram WebApp
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand(); // Bikin tampilan HP langsung full screen di Telegram
+    }
+
     updateClock();
     setInterval(updateClock, 1000);
     initSwipeLockscreen();
 
     if (!window.gameState.registered) {
+        // Auto-fill nama di form pendaftaran jika baru pertama kali buka
+        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+        if (tgUser) {
+            const regInput = document.getElementById('reg-fullname');
+            if (regInput) {
+                regInput.value = `${tgUser.first_name}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`;
+            }
+        }
         document.getElementById('screen-register').classList.remove('hidden');
     } else {
         document.getElementById('screen-lockscreen').classList.remove('hidden');
