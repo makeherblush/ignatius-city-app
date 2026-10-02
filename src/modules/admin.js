@@ -1,27 +1,71 @@
-// ==========================================
-// MODUL DUKCAPIL & CONTROL PANEL ADMIN (ADMIN.JS)
-// ==========================================
 
 const AdminModule = {
-    // --- CEK HAK AKSES OWNER & ADMIN ---
+    // ------------------------------------------
+    // 1. LOGIKA REGISTRASI WARGA BARU
+    // ------------------------------------------
+    registerCitizen(fullName, gender, passcode) {
+        if (!passcode || passcode.length !== 4) {
+            if (typeof showToast === 'function') showToast('PIN Lockscreen harus 4 digit!', 'error');
+            return false;
+        }
+
+        // Ambil data user dari Telegram WebApp
+        const tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) 
+            ? window.Telegram.WebApp.initDataUnsafe.user 
+            : null;
+
+        // Bikin NIK Otomatis dari Telegram ID / Random IGN
+        const nik = tgUser ? `TG-${tgUser.id}` : `IGN-${Math.floor(100000 + Math.random() * 900000)}`;
+        
+        // Ambil PP Telegram, jika tidak ada/error otomatis pakai UI-Avatars
+        const photoUrl = (tgUser && tgUser.photo_url) 
+            ? tgUser.photo_url 
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
+
+        // Simpan Identitas ke Master State
+        window.gameState.user.identity = {
+            nik: nik,
+            fullName: fullName || (tgUser ? tgUser.first_name : 'Warga Ignatius'),
+            gender: gender || 'Laki-laki',
+            photoUrl: photoUrl,
+            registeredAt: new Date().toISOString().split('T')[0],
+            pinPasscode: passcode
+        };
+
+        // Bikin No. KK Otomatis
+        window.gameState.user.family.kkNumber = `KK-${Math.floor(10000000 + Math.random() * 90000000)}`;
+        window.gameState.registered = true;
+
+        // Auto-assign status Owner jika NIK kamu sesuai
+        if (nik === 'TG-8853198899' || !window.gameState.system.ownerId) {
+            window.gameState.system.ownerId = nik;
+        }
+
+        window.saveState();
+        return true;
+    },
+
+    // ------------------------------------------
+    // 2. HELPER OWNER & ADMIN
+    // ------------------------------------------
     isOwner() {
         const myNik = window.gameState?.user?.identity?.nik;
         if (!myNik) return false;
-
         const ownerId = window.gameState?.system?.ownerId;
-        return myNik === ownerId || myNik === 'TG-8853198899'; // Fallback ID Owner NIK
+        return myNik === ownerId || myNik === 'TG-8853198899';
     },
 
     isAdmin() {
         const myNik = window.gameState?.user?.identity?.nik;
         if (!myNik) return false;
-
-        const isOwner = this.isOwner();
-        const isAdminList = (window.gameState?.system?.adminIds || []).includes(myNik);
-
-        return isOwner || isAdminList;
+        return this.isOwner() || (window.gameState?.system?.adminIds || []).includes(myNik);
     },
 
+    // ... (fungsi KTP Flip, Dukcapil, & Panel Admin lainnya) ...
+};
+
+// Expose ke global window
+window.AdminModule = AdminModule;
     // --- TOGGLE FLIP KARTU KTP ---
     flipKtpCard() {
         playAudioSfx('keypad');
