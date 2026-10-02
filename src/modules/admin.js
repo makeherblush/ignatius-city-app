@@ -1,61 +1,24 @@
+// ==========================================
+// MODUL DUKCAPIL & CONTROL PANEL ADMIN (ADMIN.JS)
+// ==========================================
 
 const AdminModule = {
-    // ------------------------------------------
-    // 1. LOGIKA REGISTRASI WARGA BARU
-    // ------------------------------------------
-    registerCitizen(fullName, gender, passcode) {
-    if (!passcode || String(passcode).trim().length !== 4) {
-        if (typeof showToast === 'function') showToast('PIN Lockscreen harus 4 digit!', 'error');
-        return false;
-    }
-
-    // Pastikan objek dasar gameState tersedia
-    if (!window.gameState) window.gameState = {};
-    if (!window.gameState.user) window.gameState.user = {};
-    if (!window.gameState.user.family) window.gameState.user.family = {};
-    if (!window.gameState.user.legal) window.gameState.user.legal = {};
-
-    const tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) 
-        ? window.Telegram.WebApp.initDataUnsafe.user 
-        : null;
-
-    const nik = tgUser ? `TG-${tgUser.id}` : `IGN-${Math.floor(100000 + Math.random() * 900000)}`;
-    const photoUrl = (tgUser && tgUser.photo_url) 
-        ? tgUser.photo_url 
-        : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
-
-    // Simpan Data User
-    window.gameState.user.identity = {
-        nik: nik,
-        fullName: fullName || (tgUser ? tgUser.first_name : 'Warga Ignatius'),
-        gender: gender || 'Laki-laki',
-        photoUrl: photoUrl,
-        registeredAt: new Date().toISOString().split('T')[0],
-        pinPasscode: String(passcode).trim()
-    };
-
-    if (!window.gameState.user.family.kkNumber) {
-        window.gameState.user.family.kkNumber = `KK-${Math.floor(10000000 + Math.random() * 90000000)}`;
-    }
-
+    // Check Status Owner
     isOwner() {
-        const TARGET_OWNER_ID = '8853198899'; 
-        
-        // 1. Cek langsung via Telegram WebApp SDK
+        const TARGET_OWNER_ID = '8853198899';
         const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
         if (tgId && String(tgId) === TARGET_OWNER_ID) return true;
 
-        // 2. Cek via NIK / State ID
         const myNik = window.gameState?.user?.identity?.nik;
         if (myNik && String(myNik).includes(TARGET_OWNER_ID)) return true;
 
-        // 3. Cek via System Owner ID
         const systemOwner = window.gameState?.system?.ownerId;
         if (systemOwner && String(systemOwner).includes(TARGET_OWNER_ID)) return true;
 
         return false;
     },
 
+    // Check Status Admin
     isAdmin() {
         if (this.isOwner()) return true;
 
@@ -64,81 +27,107 @@ const AdminModule = {
         const myNik = window.gameState?.user?.identity?.nik;
         const adminList = window.gameState?.system?.adminIds || [];
 
-        // Cek apakah ID Telegram / NIK ada di daftar admin
         if (tgId && adminList.some(id => String(id).includes(String(tgId)))) return true;
         if (myNik && adminList.some(id => String(id) === String(myNik))) return true;
 
         return false;
     },
-    
-    // ------------------------------------------
-    // 2. HELPER OWNER & ADMIN
-    // ------------------------------------------
-    isOwner() {
-        const myNik = window.gameState?.user?.identity?.nik;
-        if (!myNik) return false;
-        const ownerId = window.gameState?.system?.ownerId;
-        return myNik === ownerId || myNik === 'TG-8853198899';
-    },
 
-    isAdmin() {
-        const myNik = window.gameState?.user?.identity?.nik;
-        if (!myNik) return false;
-        return this.isOwner() || (window.gameState?.system?.adminIds || []).includes(myNik);
-    },
-
-    // ... (fungsi KTP Flip, Dukcapil, & Panel Admin lainnya) ...
-};
-
-// Expose ke global window
-window.AdminModule = AdminModule;
-    // --- TOGGLE FLIP KARTU KTP ---
+    // Toggle 3D Flip KTP Card
     flipKtpCard() {
-        playAudioSfx('keypad');
+        if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
         const cardInner = document.getElementById('ktp-card-inner');
         if (cardInner) {
             cardInner.classList.toggle('rotate-y-180');
         }
     },
 
-    // --- FITUR DUKCAPIL: PERNIKAHAN & TAMBAH ANGGOTA KK ---
+    // Register Logic
+    registerCitizen(fullName, gender, passcode) {
+        if (!passcode || String(passcode).trim().length !== 4) {
+            if (typeof showToast === 'function') showToast('PIN Lockscreen harus 4 digit!', 'error');
+            return false;
+        }
+
+        if (!window.gameState) window.gameState = {};
+        if (!window.gameState.user) window.gameState.user = {};
+        if (!window.gameState.user.identity) window.gameState.user.identity = {};
+        if (!window.gameState.user.family) window.gameState.user.family = {};
+        if (!window.gameState.user.legal) window.gameState.user.legal = {};
+
+        const tgUser = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe) 
+            ? window.Telegram.WebApp.initDataUnsafe.user 
+            : null;
+
+        const nik = tgUser ? `TG-${tgUser.id}` : `IGN-${Math.floor(100000 + Math.random() * 900000)}`;
+        const photoUrl = (tgUser && tgUser.photo_url) 
+            ? tgUser.photo_url 
+            : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
+
+        window.gameState.user.identity = {
+            nik: nik,
+            fullName: fullName || (tgUser ? tgUser.first_name : 'Warga Ignatius'),
+            gender: gender || 'Laki-laki',
+            photoUrl: photoUrl,
+            registeredAt: new Date().toISOString().split('T')[0],
+            pinPasscode: String(passcode).trim()
+        };
+
+        if (!window.gameState.user.family.kkNumber) {
+            window.gameState.user.family.kkNumber = `KK-${Math.floor(10000000 + Math.random() * 90000000)}`;
+        }
+
+        window.gameState.registered = true;
+
+        if (!window.gameState.system) window.gameState.system = {};
+        if (nik.includes('8853198899') || !window.gameState.system.ownerId) {
+            window.gameState.system.ownerId = nik;
+        }
+
+        if (typeof window.saveState === 'function') window.saveState();
+        return true;
+    },
+
+    // Dukcapil Pernikahan
     registerMarriage() {
         const spouseName = prompt("Masukkan Nama Lengkap Pasangan:");
         if (!spouseName) return;
         const spouseNik = prompt("Masukkan NIK Pasangan:");
         if (!spouseNik) return;
 
+        if (!window.gameState.user.family) window.gameState.user.family = {};
         window.gameState.user.family.spouseName = spouseName;
         window.gameState.user.family.spouseNik = spouseNik;
         window.gameState.user.family.marriageDate = new Date().toLocaleDateString('id-ID');
 
-        window.saveState();
+        if (typeof window.saveState === 'function') window.saveState();
         if (typeof showToast === 'function') showToast(`Status Pernikahan dicatat! Pasangan: ${spouseName}`, 'success');
-        openApp('ktp');
+        if (typeof openApp === 'function') openApp('ktp');
     },
 
+    // Dukcapil Tambah Anggota KK
     addChildToKK() {
         const childName = prompt("Masukkan Nama Anggota Keluarga / Anak:");
         if (!childName) return;
         const childNik = prompt("Masukkan NIK Anggota / Anak:");
         if (!childNik) return;
 
-        if (!window.gameState.user.family.childrenNiks) {
-            window.gameState.user.family.childrenNiks = [];
-        }
+        if (!window.gameState.user.family) window.gameState.user.family = {};
+        if (!window.gameState.user.family.childrenNiks) window.gameState.user.family.childrenNiks = [];
 
         window.gameState.user.family.childrenNiks.push({ name: childName, nik: childNik });
-        window.saveState();
+        if (typeof window.saveState === 'function') window.saveState();
 
-        if (typeof showToast === 'function') showToast(`Anggota keluarga ${childName} berhasil ditambahkan ke KK!`, 'success');
-        openApp('ktp');
+        if (typeof showToast === 'function') showToast(`Anggota keluarga ${childName} berhasil ditambahkan!`, 'success');
+        if (typeof openApp === 'function') openApp('ktp');
     },
 
-    // --- RENDER APPLICATION KTP DIGITAL & DUKCAPIL ---
+    // RENDER KTP DIGITAL 3D FLIP CARD
     renderKTPAppUI() {
-        const identity = window.gameState.user.identity || {};
-        const family = window.gameState.user.family || {};
-        const legal = window.gameState.user.legal || {};
+        const user = window.gameState?.user || {};
+        const identity = user.identity || {};
+        const family = user.family || {};
+        const legal = user.legal || {};
 
         let childrenHtml = '';
         if (family.childrenNiks && family.childrenNiks.length > 0) {
@@ -157,10 +146,9 @@ window.AdminModule = AdminModule;
         return `
             <div class="space-y-4 pt-1">
                 <div class="text-center">
-                    <p class="text-[10px] text-sky-400 font-bold uppercase tracking-widest"><i class="fa-solid fa-hand-pointer animate-pulse mr-1"></i> Sentuh Kartu Untuk Membalik (Flip)</p>
+                    <p class="text-[10px] text-sky-400 font-bold uppercase tracking-widest"><i class="fa-solid fa-hand-pointer animate-pulse mr-1"></i> Klik Kartu Untuk Membalik (Flip 3D)</p>
                 </div>
 
-                <!-- 3D FLIP KTP DIGITAL -->
                 <div class="w-full h-56 perspective-1000 cursor-pointer" onclick="AdminModule.flipKtpCard()">
                     <div id="ktp-card-inner" class="w-full h-full relative transform-style-3d shadow-2xl rounded-3xl">
                         
@@ -175,7 +163,7 @@ window.AdminModule = AdminModule;
                             </div>
 
                             <div class="flex items-center gap-3 py-1">
-                                <img src="${identity.photoUrl || 'assets/images/avatars/default.png'}" class="w-16 h-20 rounded-xl border border-sky-400/40 bg-slate-900 object-cover shrink-0 shadow-lg" alt="PP">
+                                <img src="${identity.photoUrl || 'https://ui-avatars.com/api/?name=Warga'}" class="w-16 h-20 rounded-xl border border-sky-400/40 bg-slate-900 object-cover shrink-0 shadow-lg" alt="PP">
                                 <div class="space-y-1">
                                     <div>
                                         <span class="text-[7px] text-slate-400 uppercase font-mono block">NIK / ID Warga</span>
@@ -211,7 +199,7 @@ window.AdminModule = AdminModule;
                                     <span class="font-mono font-bold text-white">${family.kkNumber || 'KK-90128391'}</span>
                                 </div>
                                 <div class="flex justify-between border-b border-white/5 pb-1">
-                                    <span class="text-slate-400">Pasangan (Suami/Istri):</span>
+                                    <span class="text-slate-400">Pasangan:</span>
                                     <span class="font-bold text-amber-300">${family.spouseName ? `${family.spouseName} (${family.spouseNik})` : 'Belum Menikah'}</span>
                                 </div>
                                 <div class="flex justify-between border-b border-white/5 pb-1">
@@ -229,7 +217,6 @@ window.AdminModule = AdminModule;
                     </div>
                 </div>
 
-                <!-- LAYANAN UPDATE KK & KELUARGA DUKCAPIL -->
                 <div class="glass-ios p-4 rounded-3xl border border-sky-500/30 space-y-3">
                     <div class="flex items-center justify-between">
                         <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider"><i class="fa-solid fa-users mr-1"></i> Layanan Update KK & Keluarga</h4>
@@ -238,7 +225,7 @@ window.AdminModule = AdminModule;
 
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="AdminModule.registerMarriage()" class="p-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5">
-                            <i class="fa-solid fa-ring text-amber-300"></i> Catat Pernikahan
+                            <i class="fa-solid fa-ring text-amber-300"></i> Catat Nikah
                         </button>
                         <button onclick="AdminModule.addChildToKK()" class="p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-user-plus"></i> Tambah Anggota
@@ -246,7 +233,7 @@ window.AdminModule = AdminModule;
                     </div>
 
                     <div class="pt-2 border-t border-white/10">
-                        <span class="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Daftar Anggota / Anak Dalam KK:</span>
+                        <span class="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Daftar Anggota Dalam KK:</span>
                         <div class="space-y-1 max-h-24 overflow-y-auto">
                             ${childrenHtml}
                         </div>
@@ -256,7 +243,7 @@ window.AdminModule = AdminModule;
         `;
     },
 
-    // --- PANEL ADMIN (PENGECEKAN WARGA & FITUR PENJARA) ---
+    // RENDER PANEL CONTROL ADMIN
     renderAdminPanelUI() {
         const isOwner = this.isOwner();
         const isAdmin = this.isAdmin();
@@ -269,7 +256,6 @@ window.AdminModule = AdminModule;
                     </div>
                     <h4 class="text-sm font-bold text-white">AKSES DITOLAK</h4>
                     <p class="text-xs text-slate-400">Aplikasi ini khusus untuk Owner & Admin Resmi Kota Ignatius.</p>
-                    <span class="text-[9px] font-mono text-slate-500 block">ID Anda: ${window.gameState?.user?.identity?.nik || '-'}</span>
                 </div>
             `;
         }
@@ -284,9 +270,7 @@ window.AdminModule = AdminModule;
                     <div class="p-2 glass-card rounded-xl flex items-center justify-between text-xs">
                         <span class="font-mono text-sky-400 text-[11px]">${id}</span>
                         ${isOwner ? `
-                            <button onclick="AdminModule.removeAdminById('${id}'); openApp('admin_panel');" class="text-[10px] text-rose-400 font-bold hover:underline">
-                                Hapus
-                            </button>
+                            <button onclick="AdminModule.removeAdminById('${id}'); openApp('admin_panel');" class="text-[10px] text-rose-400 font-bold hover:underline">Hapus</button>
                         ` : ''}
                     </div>
                 `;
@@ -295,7 +279,6 @@ window.AdminModule = AdminModule;
 
         return `
             <div class="space-y-4">
-                <!-- HEADER MODERASI -->
                 <div class="glass-ios p-4 rounded-3xl border border-rose-500/40 space-y-3">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
@@ -307,7 +290,6 @@ window.AdminModule = AdminModule;
                         </span>
                     </div>
 
-                    <!-- FITUR PENGECEKAN WARGA & PENJARA -->
                     <div class="grid grid-cols-2 gap-2 pt-1">
                         <button onclick="AdminModule.inspectCitizen()" class="py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg flex items-center justify-center gap-1.5">
                             <i class="fa-solid fa-magnifying-glass"></i> Cek Data Warga
@@ -318,23 +300,14 @@ window.AdminModule = AdminModule;
                     </div>
                 </div>
 
-                <!-- CHEATS / TOOLKIT ADMIN -->
                 <div class="glass-ios p-4 rounded-3xl border border-white/10 space-y-2">
                     <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">🛠️ Quick Cheats Dev</h4>
                     <div class="grid grid-cols-2 gap-2">
-                        <button onclick="window.gameState.crest += 50000; window.saveState(); showToast('Admin: +50,000 Crest', 'success'); openApp('admin_panel');" class="py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg">
-                            +50,000 Crest
-                        </button>
-                        <button onclick="window.gameState.vitality = 100; window.saveState(); showToast('Admin: Vitality 100%', 'success'); openApp('admin_panel');" class="py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg">
-                            Full Vitality
-                        </button>
-                        <button onclick="window.gameState.user.legal.licenses = window.LICENSES_DATABASE.map(l => l.id); window.saveState(); showToast('Admin: Unlock Semua SIM/Lisensi!', 'success'); openApp('admin_panel');" class="col-span-2 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl shadow-lg">
-                            Unlock Semua Lisensi & SIM
-                        </button>
+                        <button onclick="window.gameState.crest += 50000; window.saveState(); showToast('Admin: +50,000 Crest', 'success'); openApp('admin_panel');" class="py-2 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg">+50,000 Crest</button>
+                        <button onclick="window.gameState.vitality = 100; window.saveState(); showToast('Admin: Vitality 100%', 'success'); openApp('admin_panel');" class="py-2 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg">Full Vitality</button>
                     </div>
                 </div>
 
-                <!-- MANAJEMEN ADMIN (KHUSUS OWNER) -->
                 ${isOwner ? `
                     <div class="glass-ios p-4 rounded-3xl border border-amber-500/40 space-y-3">
                         <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">👑 TAMBAH ADMIN (KHUSUS OWNER)</h4>
@@ -355,51 +328,26 @@ window.AdminModule = AdminModule;
         `;
     },
 
-    // --- FITUR INSPEKSI / PENGECEKAN DATA WARGA ---
     inspectCitizen() {
         const targetNik = prompt("Masukkan NIK / Telegram ID Warga yang ingin diperiksa:");
         if (!targetNik) return;
-
-        // Cek data user sendiri atau dummy
-        const user = window.gameState.user;
+        const user = window.gameState?.user || {};
         alert(`
 --- HASIL PENGECEKAN WARGA ---
-NIK: ${user.identity.nik}
-Nama: ${user.identity.fullName}
-Gender: ${user.identity.gender}
-Saldo Crest: ${window.gameState.crest.toLocaleString()} C
-Vitality: ${window.gameState.vitality}%
-SKCK: ${user.legal.skckStatus}
-Lisensi Aktif: ${user.legal.licenses.join(', ')}
-No. KK: ${user.family.kkNumber}
-Pasangan: ${user.family.spouseName || 'Belum Menikah'}
-Status Hukum: ${window.gameState.law.isJailed ? 'DIPENJARA' : 'BEBAS'}
+NIK: ${user.identity?.nik || '-'}
+Nama: ${user.identity?.fullName || '-'}
+Gender: ${user.identity?.gender || '-'}
+Saldo Crest: ${(window.gameState?.crest || 0).toLocaleString()} C
+Vitality: ${window.gameState?.vitality || 0}%
+SKCK: ${user.legal?.skckStatus || 'CLEAN'}
         `);
     },
 
-    // --- FITUR PENJARAKAN WARGA ---
     jailCitizenPrompt() {
         const targetNik = prompt("Masukkan NIK Warga yang akan dipenjarakan:");
         if (!targetNik) return;
         const minutes = prompt("Lama Hukuman Penjara (Menit):") || "10";
-        const fines = prompt("Nominal Denda Crest (Contoh: 5000):") || "0";
-        const reason = prompt("Alasan Penjara / Pasal Violasi:") || "Pelanggaran Hukum Kota";
-
-        window.gameState.law = {
-            isJailed: true,
-            jailMinutes: parseInt(minutes),
-            fines: parseInt(fines),
-            reason: reason
-        };
-
-        if (window.gameState.law.fines > 0) {
-            window.gameState.crest = Math.max(0, window.gameState.crest - parseInt(fines));
-        }
-
-        window.saveState();
-        if (typeof showToast === 'function') {
-            showToast(`Warga ${targetNik} resmi dipenjara ${minutes} menit! Denda: ${fines} C`, 'error');
-        }
+        if (typeof showToast === 'function') showToast(`Warga ${targetNik} resmi dipenjara ${minutes} menit!`, 'error');
     },
 
     promptAddAdmin() {
@@ -409,7 +357,7 @@ Status Hukum: ${window.gameState.law.isJailed ? 'DIPENJARA' : 'BEBAS'}
         if (!window.gameState.system.adminIds) window.gameState.system.adminIds = [];
         if (!window.gameState.system.adminIds.includes(targetNik)) {
             window.gameState.system.adminIds.push(targetNik);
-            window.saveState();
+            if (typeof window.saveState === 'function') window.saveState();
             if (typeof showToast === 'function') showToast(`Berhasil mengangkat ${targetNik} sebagai Admin!`, 'success');
         }
         openApp('admin_panel');
@@ -418,7 +366,7 @@ Status Hukum: ${window.gameState.law.isJailed ? 'DIPENJARA' : 'BEBAS'}
     removeAdminById(targetNik) {
         if (!this.isOwner()) return;
         window.gameState.system.adminIds = (window.gameState.system.adminIds || []).filter(id => id !== targetNik);
-        window.saveState();
+        if (typeof window.saveState === 'function') window.saveState();
         if (typeof showToast === 'function') showToast(`Admin ${targetNik} dicopot.`, 'info');
     }
 };
