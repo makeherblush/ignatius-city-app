@@ -499,6 +499,11 @@ function openApp(appName) {
     } else if (appName === 'settings') {
         title.textContent = 'Pengaturan iOS';
         body.innerHTML = typeof renderSettingsUI === 'function' ? renderSettingsUI() : 'Pengaturan Siap';
+   } else if (appName === 'messages') {
+        title.textContent = 'IgnaTalk (Pesan)';
+        body.innerHTML = (window.MessagesModule && typeof window.MessagesModule.renderMessagesAppUI === 'function') 
+            ? window.MessagesModule.renderMessagesAppUI() 
+            : 'Sistem Pesan Siap';
     }
 }
 
