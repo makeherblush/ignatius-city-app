@@ -7,10 +7,10 @@ const DEFAULT_GAME_STATE = {
     vitality: 100,
     registered: false,
 
-    // SISTEM OWNER & ADMIN (Admin kosong di awal)
     system: {
-        ownerId: 'TG-8853198899', // Set NIK / Telegram ID Owner di sini
-        adminIds: []              // Kosong, nanti ditambah dinamis oleh Owner
+        ownerId: 'TG-123456789',
+        adminIds: [],
+        wallpaperUrl: 'assets/images/wallpaper.png' // Wallpaper default
     },
 
     user: {
@@ -64,7 +64,7 @@ const DEFAULT_GAME_STATE = {
 
 class GameStateManager {
     constructor() {
-        this.STORAGE_KEY = 'IGNATIUS_MASTER_STATE_V5';
+        this.STORAGE_KEY = 'IGNATIUS_MASTER_STATE_V6';
         this.data = JSON.parse(JSON.stringify(DEFAULT_GAME_STATE));
         this.load();
     }
