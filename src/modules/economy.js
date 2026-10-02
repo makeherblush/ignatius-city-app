@@ -43,33 +43,37 @@ const EconomyModule = {
 
     // --- FITUR PAKAI / MAKAN BARANG DARI TAS ---
     useItem(instanceId) {
-        if (!window.gameState?.economy?.inventory) return;
+    if (!window.gameState?.economy?.inventory) return;
 
-        const inv = window.gameState.economy.inventory;
-        const itemIndex = inv.findIndex(i => i.instanceId === instanceId || i.id === instanceId);
+    const inv = window.gameState.economy.inventory;
+    const itemIndex = inv.findIndex(i => i.instanceId === instanceId || i.id === instanceId);
 
-        if (itemIndex === -1) {
-            if (typeof showToast === 'function') showToast('Barang tidak ditemukan di Tas!', 'error');
-            return;
-        }
+    if (itemIndex === -1) {
+        if (typeof showToast === 'function') showToast('Barang tidak ditemukan di Tas!', 'error');
+        return;
+    }
 
-        const item = inv[itemIndex];
+    const item = inv[itemIndex];
+    const isConsumable = item.type === 'food' || item.type === 'drink' || item.isConsumable === true;
+
+    if (isConsumable) {
+        // MAKANAN / MINUMAN: Habis dimakan & Menambah Vitality
         const vitGain = item.vitRestore || 20;
-
-        // Pulihkan Vitality (Maksimal 100%)
         window.gameState.vitality = Math.min(100, (window.gameState.vitality || 0) + vitGain);
+        inv.splice(itemIndex, 1); // Hapus dari tas
 
-        // Hapus 1 barang dari inventaris setelah dipakai
-        inv.splice(itemIndex, 1);
-
-        if (typeof window.saveState === 'function') window.saveState();
         if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
-        if (typeof showToast === 'function') showToast(`Menggunakan ${item.name} (+${vitGain}% Vitality)`, 'success');
+        if (typeof showToast === 'function') showToast(`Mengonsumsi ${item.name} (+${vitGain}% Vitality)`, 'success');
+    } else {
+        // KENDARAAN / ASET / BARANG: Tidak hilang! Hanya ganti status
+        item.isEquipped = !item.isEquipped;
+        if (typeof showToast === 'function') showToast(`${item.name} ${item.isEquipped ? 'sekarang digunakan / dikendarai' : 'disimpan di bagasi'}`, 'info');
+    }
 
-        // Re-render UI Tas Inventaris
-        if (typeof openApp === 'function') openApp('inventory');
-    },
-
+    if (typeof window.saveState === 'function') window.saveState();
+    if (typeof openApp === 'function') openApp('inventory');
+}
+    
     // --- RENDER APLIKASI TAS & ASET KEPEMILIKAN ---
     renderInventoryAppUI() {
         const inv = window.gameState?.economy?.inventory || [];
