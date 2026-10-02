@@ -401,16 +401,47 @@ function closeApp() {
     if (win) win.classList.add('hidden');
 }
 
+function syncTelegramProfile() {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const regAvatar = document.getElementById('reg-avatar');
+    const regInput = document.getElementById('reg-fullname');
+
+    if (tgUser) {
+        const fullName = `${tgUser.first_name || ''}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`.trim();
+        if (regInput && fullName) {
+            regInput.value = fullName;
+        }
+
+        if (regAvatar) {
+            if (tgUser.photo_url) {
+                regAvatar.src = tgUser.photo_url;
+            } else {
+                regAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
+            }
+        }
+    }
+}
+
 function handleRegisterSubmit(e) {
     e.preventDefault();
     const name = document.getElementById('reg-fullname').value;
     const gender = document.getElementById('reg-gender').value;
     const passcode = document.getElementById('reg-passcode').value;
 
-    if (window.AdminModule.registerCitizen(name, gender, passcode)) {
-        playAudioSfx('unlock');
-        document.getElementById('screen-register').classList.add('hidden');
-        document.getElementById('screen-lockscreen').classList.remove('hidden');
+    if (!passcode || passcode.length !== 4) {
+        showToast('PIN Lockscreen harus 4 digit!', 'error');
+        return;
+    }
+
+    if (window.AdminModule && window.AdminModule.registerCitizen) {
+        const success = window.AdminModule.registerCitizen(name, gender, passcode);
+        if (success) {
+            playAudioSfx('unlock');
+            document.getElementById('screen-register').classList.add('hidden');
+            document.getElementById('screen-lockscreen').classList.remove('hidden');
+            updateUI();
+            showToast('Pendaftaran Berhasil! Silakan Buka Kunci.', 'success');
+        }
     }
 }
 
@@ -469,13 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSwipeLockscreen();
 
     if (!window.gameState.registered) {
-        const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-        if (tgUser) {
-            const regInput = document.getElementById('reg-fullname');
-            if (regInput) {
-                regInput.value = `${tgUser.first_name}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`;
-            }
-        }
+        syncTelegramProfile();
         document.getElementById('screen-register').classList.remove('hidden');
     } else {
         document.getElementById('screen-lockscreen').classList.remove('hidden');
