@@ -38,22 +38,38 @@ const AdminModule = {
         window.gameState.user.family.kkNumber = `KK-${Math.floor(10000000 + Math.random() * 90000000)}`;
     }
 
-    // UTAMA: KUNCI STATUS REGISTRASI JADI TRUE
-    window.gameState.registered = true;
+    isOwner() {
+        const TARGET_OWNER_ID = '8853198899'; 
+        
+        // 1. Cek langsung via Telegram WebApp SDK
+        const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        if (tgId && String(tgId) === TARGET_OWNER_ID) return true;
 
-    // Set Owner Otomatis jika ID Sesuai
-    if (!window.gameState.system) window.gameState.system = {};
-    if (nik === 'TG-8853198899' || !window.gameState.system.ownerId) {
-        window.gameState.system.ownerId = nik;
-    }
+        // 2. Cek via NIK / State ID
+        const myNik = window.gameState?.user?.identity?.nik;
+        if (myNik && String(myNik).includes(TARGET_OWNER_ID)) return true;
 
-    // Simpan Ke LocalStorage
-    if (typeof window.saveState === 'function') {
-        window.saveState();
-    }
+        // 3. Cek via System Owner ID
+        const systemOwner = window.gameState?.system?.ownerId;
+        if (systemOwner && String(systemOwner).includes(TARGET_OWNER_ID)) return true;
 
-    return true;
-}
+        return false;
+    },
+
+    isAdmin() {
+        if (this.isOwner()) return true;
+
+        const TARGET_OWNER_ID = '8853198899';
+        const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+        const myNik = window.gameState?.user?.identity?.nik;
+        const adminList = window.gameState?.system?.adminIds || [];
+
+        // Cek apakah ID Telegram / NIK ada di daftar admin
+        if (tgId && adminList.some(id => String(id).includes(String(tgId)))) return true;
+        if (myNik && adminList.some(id => String(id) === String(myNik))) return true;
+
+        return false;
+    },
     
     // ------------------------------------------
     // 2. HELPER OWNER & ADMIN
