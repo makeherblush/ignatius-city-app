@@ -7,15 +7,9 @@ const MessagesModule = {
         if (!window.gameState) window.gameState = {};
         if (!window.gameState.chats) {
             window.gameState.chats = {
-                contacts: [
-                    { nik: 'TG-8853198899', name: 'Owner / Admin Kota', avatar: 'https://ui-avatars.com/api/?name=Admin+Kota&background=10b981&color=fff' }
-                ],
+                contacts: [],
                 activeChatNik: null,
-                messagesHistory: {
-                    'TG-8853198899': [
-                        { sender: 'them', text: 'Halo! Selamat datang di IgnaTalk Kota Ignatius.', time: '12:00' }
-                    ]
-                }
+                messagesHistory: {}
             };
         }
     },
@@ -44,65 +38,48 @@ const MessagesModule = {
         }
 
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Kontak ${name} tersinkron & ditambahkan!`, 'success');
+        if (typeof showToast === 'function') showToast(`Kontak ${name} berhasil ditambahkan!`, 'success');
         this.openChatRoom(targetNik);
     },
 
     openChatRoom(nik) {
         this.initChats();
         window.gameState.chats.activeChatNik = nik;
-        if (typeof openApp === 'function') openApp('messages');
+        openApp('messages');
     },
 
     closeChatRoom() {
         this.initChats();
         window.gameState.chats.activeChatNik = null;
-        if (typeof openApp === 'function') openApp('messages');
+        openApp('messages');
     },
 
     sendMessage() {
-    this.initChats();
-    const input = document.getElementById('chat-input-msg');
-    if (!input || !input.value.trim()) return;
+        this.initChats();
+        const input = document.getElementById('chat-input-msg');
+        if (!input || !input.value.trim()) return;
 
-    const text = input.value.trim();
-    const activeNik = window.gameState.chats.activeChatNik;
-    if (!activeNik) return;
+        const text = input.value.trim();
+        const activeNik = window.gameState.chats.activeChatNik;
+        if (!activeNik) return;
 
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-    if (!window.gameState.chats.messagesHistory[activeNik]) {
-        window.gameState.chats.messagesHistory[activeNik] = [];
-    }
+        if (!window.gameState.chats.messagesHistory[activeNik]) {
+            window.gameState.chats.messagesHistory[activeNik] = [];
+        }
 
-    // Simpan pesan murni dari pengirim
-    window.gameState.chats.messagesHistory[activeNik].push({
-        sender: 'me',
-        text: text,
-        time: timeStr
-    });
+        window.gameState.chats.messagesHistory[activeNik].push({
+            sender: 'me',
+            text: text,
+            time: timeStr
+        });
 
-    input.value = '';
-    if (typeof window.saveState === 'function') window.saveState();
-    if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
-    if (typeof openApp === 'function') openApp('messages');
-}
-
-        // Simulated Response / Auto Reply
-        setTimeout(() => {
-            if (window.gameState.chats.activeChatNik === activeNik) {
-                window.gameState.chats.messagesHistory[activeNik].push({
-                    sender: 'them',
-                    text: 'Pesan kamu sudah masuk & tersinkron!',
-                    time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-                });
-                if (typeof window.saveState === 'function') window.saveState();
-                if (typeof openApp === 'function') openApp('messages');
-            }
-        }, 1000);
-
-        if (typeof openApp === 'function') openApp('messages');
+        input.value = '';
+        if (typeof window.saveState === 'function') window.saveState();
+        if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
+        openApp('messages');
     },
 
     renderMessagesAppUI() {
@@ -110,7 +87,6 @@ const MessagesModule = {
         const activeNik = window.gameState.chats.activeChatNik;
         const contacts = window.gameState.chats.contacts || [];
 
-        // 1. TAMPILAN DALAM RUANG CHAT (CHAT ROOM)
         if (activeNik) {
             const contact = contacts.find(c => c.nik === activeNik) || { name: `Warga (${activeNik})`, nik: activeNik, avatar: 'https://ui-avatars.com/api/?name=Warga' };
             const msgs = window.gameState.chats.messagesHistory[activeNik] || [];
@@ -141,7 +117,6 @@ const MessagesModule = {
                                 <span class="text-[9px] text-emerald-400 font-mono">${contact.nik}</span>
                             </div>
                         </div>
-                        <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[8px] font-bold rounded">ONLINE</span>
                     </div>
 
                     <div class="flex-1 overflow-y-auto space-y-2.5 p-1 max-h-[280px]">
@@ -158,7 +133,6 @@ const MessagesModule = {
             `;
         }
 
-        // 2. TAMPILAN DAFTAR KONTAK & PESAN (LINE / IGNA TALK)
         let contactsHtml = '';
         if (contacts.length === 0) {
             contactsHtml = `<p class="text-[10px] text-slate-500 text-center py-8">Belum ada kontak. Klik "+ Tambah Teman" untuk mulai chat!</p>`;
@@ -188,7 +162,7 @@ const MessagesModule = {
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <i class="fa-solid fa-comments text-emerald-400 text-base"></i>
-                            <h4 class="text-xs font-bold text-emerald-300 uppercase tracking-wider">IGNA TALK (LINE CHAT)</h4>
+                            <h4 class="text-xs font-bold text-emerald-300 uppercase tracking-wider">IGNA TALK (PESAN)</h4>
                         </div>
                         <button onclick="MessagesModule.addContactPrompt()" class="px-2.5 py-1 bg-emerald-500 text-slate-950 font-bold text-[10px] rounded-lg shadow-md flex items-center gap-1">
                             <i class="fa-solid fa-user-plus text-[9px]"></i> Tambah Teman
