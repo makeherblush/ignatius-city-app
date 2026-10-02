@@ -2,167 +2,223 @@
 <html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crestville - Web Life Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kota Ignatius - iOS Life Simulator</title>
     
-    <link rel="icon" type="image/png" href="favicon.png">
-
-    <!-- Tailwind CSS (CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        dark: {
-                            900: '#0f172a',
-                            950: '#090d16'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        /* Custom Scrollbar untuk Tampilan HP */
-        ::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: #090d16;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #1e293b;
-            border-radius: 4px;
-        }
-    </style>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="assets/css/ios-style.css">
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center font-sans selection:bg-sky-500 selection:text-white p-0 sm:p-4">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-0 sm:p-4 font-ios overflow-hidden select-none">
 
     <!-- AUDIO ELEMENTS -->
-    <audio id="bg-audio" loop>
-        <source src="backsound.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="sfx-cash" preload="auto">
-        <source src="cash-register.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="sfx-siren" preload="auto">
-        <source src="siren-911.mp3" type="audio/mpeg">
-    </audio>
+    <audio id="audio-lock" src="assets/audio/lock.mp3" preload="auto"></audio>
+    <audio id="audio-unlock" src="assets/audio/unlock.mp3" preload="auto"></audio>
+    <audio id="audio-keypad" src="assets/audio/keypad.mp3" preload="auto"></audio>
+    <audio id="audio-cash" src="assets/audio/cash.mp3" preload="auto"></audio>
+    <audio id="audio-siren" src="assets/audio/siren.mp3" preload="auto"></audio>
+    <audio id="audio-error" src="assets/audio/error.mp3" preload="auto"></audio>
+    <audio id="audio-noti" src="assets/audio/notification.mp3" preload="auto"></audio>
 
-    <!-- BINGKAI HP / IPHONE WRAPPER -->
-    <div class="w-full sm:max-w-[420px] h-screen sm:h-[860px] bg-slate-950 sm:rounded-[40px] sm:border-[8px] sm:border-slate-800 shadow-2xl flex flex-col overflow-hidden relative">
+    <!-- IPHONE CHASSIS -->
+    <div id="iphone-chassis" class="w-full sm:max-w-[390px] h-screen sm:h-[844px] bg-black sm:rounded-[50px] sm:border-[10px] sm:border-slate-800 shadow-2xl flex flex-col relative overflow-hidden">
+        
+        <!-- STATUS BAR iOS & DYNAMIC ISLAND -->
+        <div class="absolute top-0 left-0 right-0 z-50 px-6 pt-3 pb-2 flex justify-between items-center text-white text-xs font-semibold pointer-events-none">
+            <span id="ios-clock-status">12:00</span>
+            
+            <div class="w-28 h-7 bg-black rounded-full flex items-center justify-between px-2.5 border border-white/10 shadow-md pointer-events-auto">
+                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 animate-pulse"></div>
+                <span class="text-[9px] text-slate-400 font-mono">IGNATIUS OS</span>
+                <i class="fa-solid fa-lock text-[9px] text-amber-400" id="island-lock-icon"></i>
+            </div>
 
-        <!-- HEADER & STATUS BAR -->
-        <header class="sticky top-0 z-40 backdrop-blur-md bg-slate-950/90 border-b border-slate-800/80 px-4 py-3 shrink-0">
-            <div class="flex items-center justify-between gap-2">
-                
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-sky-500/20 overflow-hidden border border-sky-500/30 shrink-0">
-                        <img src="logo.png" alt="Logo" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div class="hidden items-center justify-center w-full h-full"><i class="fa-solid fa-city text-sm"></i></div>
+            <div class="flex items-center gap-1.5 text-[11px]">
+                <i class="fa-solid fa-signal"></i>
+                <i class="fa-solid fa-wifi"></i>
+                <i class="fa-solid fa-battery-three-quarters text-emerald-400"></i>
+            </div>
+        </div>
+
+        <!-- SCREEN CONTAINER -->
+        <div class="flex-1 w-full h-full relative overflow-hidden pt-10 pb-6">
+
+            <!-- 1. REGISTRATION SCREEN -->
+            <div id="screen-register" class="absolute inset-0 z-40 bg-slate-950 p-6 flex flex-col justify-between overflow-y-auto hidden">
+                <div class="space-y-6 pt-6">
+                    <div class="text-center space-y-2">
+                        <div class="w-20 h-20 mx-auto rounded-3xl bg-sky-500/10 p-0.5 border border-sky-500/30">
+                            <img id="reg-avatar" src="assets/images/avatars/default.png" class="w-full h-full object-cover rounded-[22px]" alt="Avatar">
+                        </div>
+                        <h2 class="text-2xl font-bold text-white">Kota Ignatius</h2>
+                        <p class="text-xs text-slate-400">Pendaftaran Kewarganegaraan Digital</p>
                     </div>
-                    <div>
-                        <h1 class="font-bold text-xs text-slate-100 tracking-wide uppercase">Crestville</h1>
-                        <span class="text-[9px] text-sky-400 font-mono">Simulator v1.0</span>
+
+                    <form id="form-register" onsubmit="handleRegisterSubmit(event)" class="space-y-4">
+                        <div class="glass-card p-4 rounded-2xl space-y-3">
+                            <div>
+                                <label class="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Nama Lengkap</label>
+                                <input type="text" id="reg-fullname" required class="w-full px-3 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-sky-500">
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-semibold text-slate-400 uppercase block mb-1">Jenis Kelamin</label>
+                                <select id="reg-gender" class="w-full px-3 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-xs text-white">
+                                    <option value="Laki-laki">Laki-laki</option>
+                                    <option value="Perempuan">Perempuan</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[11px] font-semibold text-amber-400 uppercase block mb-1">Buat PIN Lockscreen (4 Digit)</label>
+                                <input type="password" maxlength="4" id="reg-passcode" required placeholder="Contoh: 1234" class="w-full px-3 py-2.5 bg-slate-950 border border-amber-500/40 rounded-xl text-center text-base font-bold text-amber-400 tracking-[0.5em]">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs rounded-2xl shadow-lg">
+                            Daftar KTP & Masuk Kota
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- 2. LOCKSCREEN iOS -->
+            <div id="screen-lockscreen" class="absolute inset-0 z-30 bg-cover bg-center flex flex-col justify-between p-6 text-white" style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('assets/images/wallpaper.png');">
+                <div class="pt-10 text-center space-y-1">
+                    <p id="ios-date-display" class="text-xs font-semibold text-slate-200 tracking-wide uppercase">Rabu, 30 September</p>
+                    <h1 id="ios-clock-big" class="text-6xl font-bold tracking-tight text-white">12:00</h1>
+                </div>
+
+                <div class="glass-ios p-4 rounded-3xl space-y-2 border border-white/15">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-2xl bg-sky-500/20 flex items-center justify-center text-sky-400">
+                            <i class="fa-solid fa-city text-base"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-white">Kota Ignatius</h4>
+                            <p class="text-[10px] text-slate-300" id="lockscreen-citizen-name">Warga Terdaftar</p>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-1.5">
-                    <button onclick="toggleBacksound()" id="audio-toggle-btn" class="p-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs text-slate-300 flex items-center justify-center transition-all" title="Toggle Audio">
-                        <i id="audio-icon" class="fa-solid fa-volume-xmark text-rose-400 text-xs"></i>
+                <div class="text-center pb-4">
+                    <button onclick="openPasscodeKeypad()" class="px-6 py-2.5 rounded-full glass-ios text-xs font-semibold hover:bg-white/20 border border-white/20">
+                        <i class="fa-solid fa-lock-open mr-1.5 text-amber-400"></i> Buka Kunci
                     </button>
+                </div>
+            </div>
 
-                    <div class="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-1.5">
-                        <i class="fa-solid fa-coins text-amber-400 text-xs"></i>
-                        <span class="global-crest-display text-[11px] font-mono font-bold text-amber-400">0</span>
+            <!-- 3. PASSCODE KEYPAD -->
+            <div id="screen-passcode" class="absolute inset-0 z-35 glass-ios p-6 flex flex-col justify-between items-center text-white hidden backdrop-blur-2xl">
+                <div class="pt-12 text-center space-y-3">
+                    <i class="fa-solid fa-lock text-xl text-amber-400"></i>
+                    <h3 class="text-sm font-semibold">Masukkan PIN Kunci</h3>
+                    <div class="flex justify-center gap-3 py-2" id="passcode-dots">
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
                     </div>
                 </div>
 
-            </div>
-
-            <!-- Vitality Bar Minimalis -->
-            <div class="mt-2.5 px-3 py-1.5 bg-slate-900/80 border border-slate-800/80 rounded-xl flex items-center gap-2">
-                <i class="fa-solid fa-heart-pulse text-rose-500 text-xs"></i>
-                <div class="flex-1 space-y-1">
-                    <div class="flex justify-between text-[9px] font-mono">
-                        <span class="text-slate-400">Vitality</span>
-                        <span class="global-vitality-text text-rose-400 font-bold">100 / 100</span>
-                    </div>
-                    <div class="w-full h-1 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
-                        <div class="global-vitality-bar h-full bg-gradient-to-r from-rose-600 to-amber-500 transition-all duration-300" style="width: 100%"></div>
-                    </div>
+                <div class="w-full max-w-[260px] grid grid-cols-3 gap-4 mb-6">
+                    <button onclick="pressKey('1')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">1</button>
+                    <button onclick="pressKey('2')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">2</button>
+                    <button onclick="pressKey('3')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">3</button>
+                    <button onclick="pressKey('4')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">4</button>
+                    <button onclick="pressKey('5')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">5</button>
+                    <button onclick="pressKey('6')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">6</button>
+                    <button onclick="pressKey('7')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">7</button>
+                    <button onclick="pressKey('8')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">8</button>
+                    <button onclick="pressKey('9')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">9</button>
+                    <button onclick="cancelPasscode()" class="w-16 h-16 text-xs text-slate-400 mx-auto flex items-center justify-center">Batal</button>
+                    <button onclick="pressKey('0')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">0</button>
+                    <button onclick="deleteKey()" class="w-16 h-16 text-slate-300 mx-auto flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
                 </div>
             </div>
-        </header>
 
-        <!-- KONTEN UTAMA (SCROLLABLE DALAM HP) -->
-        <main class="flex-1 overflow-y-auto p-4 space-y-4">
+            <!-- 4. HOMESCREEN iOS -->
+            <div id="screen-homescreen" class="absolute inset-0 z-20 bg-cover bg-center p-5 flex flex-col justify-between hidden" style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)), url('assets/images/wallpaper.png');">
+                <div class="space-y-4 pt-4">
+                    <!-- Widget Status Warga -->
+                    <div class="glass-ios p-3.5 rounded-3xl space-y-2 border border-white/20">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <img id="home-user-avatar" src="assets/images/avatars/default.png" class="w-9 h-9 rounded-full bg-slate-800 border border-white/20 object-cover" alt="PP">
+                                <div>
+                                    <h3 id="home-user-name" class="text-xs font-bold text-white">Nama Warga</h3>
+                                    <span id="home-user-nik" class="text-[9px] font-mono text-sky-400">NIK: -</span>
+                                </div>
+                            </div>
+                            <div class="px-2.5 py-1 bg-amber-500/20 rounded-full border border-amber-500/30 flex items-center gap-1.5">
+                                <i class="fa-solid fa-coins text-amber-400 text-xs"></i>
+                                <span id="display-crest" class="text-xs font-mono font-bold text-amber-300">5,000</span>
+                            </div>
+                        </div>
 
-            <!-- Navigasi Menu Tab -->
-            <nav class="grid grid-cols-4 gap-1.5 bg-slate-900/50 p-1.5 rounded-2xl border border-slate-800/80">
-                <button id="nav-citymap" onclick="switchTab('citymap')" class="nav-tab-btn px-2 py-2 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
-                    <i class="fa-solid fa-map-location-dot text-sm"></i> Peta
-                </button>
-                <button id="nav-jobs" onclick="switchTab('jobs')" class="nav-tab-btn px-2 py-2 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
-                    <i class="fa-solid fa-briefcase text-sm"></i> Kerja
-                </button>
-                <button id="nav-admin" onclick="switchTab('admin')" class="nav-tab-btn px-2 py-2 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
-                    <i class="fa-solid fa-address-card text-sm"></i> KTP
-                </button>
-                <button id="nav-property" onclick="switchTab('property')" class="nav-tab-btn px-2 py-2 rounded-xl text-[10px] font-bold transition-all flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-200">
-                    <i class="fa-solid fa-house-chimney text-sm"></i> Rumah
-                </button>
-            </nav>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[9px] font-semibold text-slate-300">
+                                <span>Vitality</span>
+                                <span id="display-vit-text" class="text-rose-400 font-bold">100 / 100</span>
+                            </div>
+                            <div class="w-full h-1.5 bg-black/50 rounded-full overflow-hidden border border-white/10">
+                                <div id="display-vit-bar" class="h-full bg-gradient-to-r from-rose-500 to-amber-400 transition-all duration-300" style="width: 100%;"></div>
+                            </div>
+                        </div>
+                    </div>
 
-            <!-- Container Konten Tiap Tab -->
-            <div class="space-y-4 pb-6">
-                <div id="citymap-tab" class="game-tab-content space-y-4"></div>
-                <div id="jobs-tab" class="game-tab-content space-y-4 hidden"></div>
-                <div id="admin-tab" class="game-tab-content space-y-4 hidden"></div>
-                <div id="property-tab" class="game-tab-content space-y-4 hidden"></div>
+                    <!-- App Grid Container -->
+                    <div id="homescreen-app-grid" class="grid grid-cols-4 gap-4 px-1 pt-2">
+                        <!-- Rendered Dynamic Grid Apps -->
+                    </div>
+                </div>
+
+                <!-- Dock iOS -->
+                <div class="glass-ios p-2.5 rounded-3xl grid grid-cols-4 gap-4 border border-white/20">
+                    <div onclick="openApp('ktp')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-sky-500/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-id-card"></i></div></div>
+                    <div onclick="openApp('jobs')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-emerald-500/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-briefcase"></i></div></div>
+                    <div onclick="openApp('economy')" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-amber-500/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-wallet"></i></div></div>
+                    <div onclick="lockScreenNow()" class="app-icon flex justify-center"><div class="w-12 h-12 rounded-xl bg-rose-600/80 flex items-center justify-center text-white text-xl"><i class="fa-solid fa-power-off"></i></div></div>
+                </div>
             </div>
 
-        </main>
+            <!-- 5. APP WINDOW MODAL -->
+            <div id="screen-app-window" class="absolute inset-0 z-30 bg-slate-950 flex flex-col hidden">
+                <div class="px-4 py-3 bg-slate-900/90 border-b border-white/10 flex items-center justify-between shrink-0">
+                    <button onclick="closeApp()" class="text-xs font-semibold text-sky-400 flex items-center gap-1">
+                        <i class="fa-solid fa-chevron-left"></i> Homescreen
+                    </button>
+                    <h3 id="app-window-title" class="text-xs font-bold text-white uppercase tracking-wider">Aplikasi</h3>
+                    <div class="w-8"></div>
+                </div>
 
-        <!-- Footer / Home Indicator ala iPhone -->
-        <footer class="shrink-0 py-2 bg-slate-950 flex justify-center items-center border-t border-slate-900">
-            <div class="w-32 h-1 bg-slate-700 rounded-full opacity-60"></div>
-        </footer>
+                <div id="app-window-body" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+            </div>
+
+        </div>
+
+        <!-- HOME BAR -->
+        <div onclick="closeApp()" class="absolute bottom-1 left-0 right-0 z-50 flex justify-center items-center py-1 cursor-pointer">
+            <div class="w-32 h-1 bg-white/60 rounded-full"></div>
+        </div>
 
     </div>
 
-    <script>
-        function toggleBacksound() {
-            const bgAudio = document.getElementById('bg-audio');
-            const icon = document.getElementById('audio-icon');
-            if (bgAudio.paused) {
-                bgAudio.volume = 0.4;
-                bgAudio.play().then(() => {
-                    icon.className = 'fa-solid fa-volume-high text-emerald-400 text-xs';
-                }).catch(e => console.log("Audio play blocked:", e));
-            } else {
-                bgAudio.pause();
-                icon.className = 'fa-solid fa-volume-xmark text-rose-400 text-xs';
-            }
-        }
-    </script>
+    <!-- TOAST NOTIFICATION iOS -->
+    <div id="toast-ios" class="fixed top-12 left-1/2 -translate-x-1/2 z-50 max-w-xs w-full px-4 pointer-events-none transition-all duration-300 opacity-0 translate-y-2">
+        <div id="toast-ios-box" class="glass-ios p-3 rounded-2xl flex items-center gap-3 text-xs font-medium text-white shadow-2xl border border-white/20">
+            <i id="toast-ios-icon" class="fa-solid fa-circle-info text-sky-400 text-base shrink-0"></i>
+            <span id="toast-ios-msg">Pesan Notifikasi</span>
+        </div>
+    </div>
 
-    <!-- SCRIPT JAVASCRIPT UTAMA -->
-    <script src="state.js"></script>
-    <script src="utils/formatters.js"></script>
-    <script src="modules/admin.js"></script>
-    <script src="modules/jobs.js"></script>
-    <script src="modules/property.js"></script>
-    <script src="modules/cityMap.js"></script>
-    <script src="storage.js"></script>
-    <script src="main.js"></script>
-
+    <!-- SCRIPT LOADER (URUTAN TERSTRUKTUR & SAFE) -->
+    <script src="src/state.js"></script>
+    <script src="src/data/licensesData.js"></script>
+    <script src="src/data/itemsData.js"></script>
+    <script src="src/data/jobsData.js"></script>
+    <script src="src/modules/admin.js"></script>
+    <script src="src/modules/economy.js"></script>
+    <script src="src/modules/jobs.js"></script>
+    <script src="src/main.js"></script>
 </body>
 </html>
