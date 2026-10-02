@@ -7,7 +7,7 @@ const ShopModule = {
         if (!window.gameState) window.gameState = {};
         if (!window.gameState.shopData) {
             window.gameState.shopData = {
-                myStore: null, // Stores user merchant data
+                myStore: null,
                 publicStores: [
                     {
                         storeId: 'store_official_1',
@@ -61,7 +61,7 @@ const ShopModule = {
             return;
         }
 
-        const isFood = confirm("Apakah ini Makanan/Minuman yang bisa dimakan? (OK = Ya, Cancel = Barang/Aset)");
+        const isFood = confirm("Apakah ini Makanan/Minuman? (OK = Ya, Cancel = Barang/Kendaraan)");
 
         myStore.items.push({
             id: 'item_custom_' + Date.now(),
@@ -69,11 +69,11 @@ const ShopModule = {
             price: price,
             type: isFood ? 'food' : 'asset',
             vitRestore: isFood ? 25 : 0,
-            desc: isFood ? 'Makanan pemulih vitality' : 'Barang inventaris'
+            desc: isFood ? 'Makanan pemulih vitality' : 'Aset / Barang inventaris'
         });
 
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Barang ${itemName} berhasil dipajang di toko!`, 'success');
+        if (typeof showToast === 'function') showToast(`Barang ${itemName} dipajang di toko!`, 'success');
         openApp('shop');
     },
 
@@ -103,11 +103,9 @@ const ShopModule = {
             return;
         }
 
-        // Potong Uang Pembeli
         window.gameState.crest -= item.price;
         store.income += item.price;
 
-        // Masukkan ke Tas Pembeli
         if (!window.gameState.economy) window.gameState.economy = {};
         if (!window.gameState.economy.inventory) window.gameState.economy.inventory = [];
 
@@ -131,7 +129,6 @@ const ShopModule = {
         const myStore = window.gameState.shopData.myStore;
         const stores = window.gameState.shopData.publicStores || [];
 
-        // 1. TAMPILAN DASHBOARD PENJUAL (JIKA SUDAH PUNYA TOKO)
         let merchantHtml = '';
         if (myStore) {
             let myItemsHtml = '';
@@ -169,9 +166,7 @@ const ShopModule = {
                             <span class="text-[10px] font-bold text-slate-300">Daftar Produk Toko Kamu</span>
                             <button onclick="ShopModule.addStoreItemPrompt()" class="px-2 py-1 bg-amber-500 text-slate-950 font-bold text-[9px] rounded-lg shadow-md">+ Tambah Barang</button>
                         </div>
-                        <div class="space-y-1.5 max-h-36 overflow-y-auto">
-                            ${myItemsHtml}
-                        </div>
+                        <div class="space-y-1.5 max-h-36 overflow-y-auto">${myItemsHtml}</div>
                     </div>
                 </div>
             `;
@@ -189,7 +184,6 @@ const ShopModule = {
             `;
         }
 
-        // 2. TAMPILAN MARKETPLACE PEMBELI
         let storesHtml = '';
         stores.forEach((st, sIdx) => {
             let itemsList = '';
@@ -221,7 +215,7 @@ const ShopModule = {
                 ${merchantHtml}
 
                 <div class="space-y-2">
-                    <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">🛍️️ Toko Kota & Marketplace</h4>
+                    <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">🛍 Toko Kota & Marketplace</h4>
                     <div class="space-y-3">${storesHtml}</div>
                 </div>
             </div>
