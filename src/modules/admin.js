@@ -349,6 +349,37 @@ SKCK: ${user.legal?.skckStatus || 'CLEAN'}
         if (typeof showToast === 'function') showToast(`Warga ${targetNik} resmi dipenjara ${minutes} menit!`, 'error');
     },
 
+    applyLicense(licId) {
+    const lic = (window.LICENSES_DATABASE || []).find(l => l.id === licId);
+    if (!lic) return;
+
+    if (!window.gameState) window.gameState = {};
+    if (!window.gameState.user) window.gameState.user = {};
+    if (!window.gameState.user.legal) window.gameState.user.legal = {};
+    if (!window.gameState.user.legal.licenses) window.gameState.user.legal.licenses = [];
+
+    // Cek apakah sudah punya
+    if (window.gameState.user.legal.licenses.includes(licId)) {
+        if (typeof showToast === 'function') showToast('Kamu sudah memiliki lisensi/dokumen ini!', 'info');
+        return;
+    }
+
+    // Cek kecukupan saldo
+    const cost = lic.cost || 0;
+    if ((window.gameState.crest || 0) < cost) {
+        if (typeof showToast === 'function') showToast(`Saldo Crest tidak cukup! Butuh ${cost.toLocaleString()} C`, 'error');
+        return;
+    }
+
+    // Potong Saldo & Tambahkan ke Lisensi Legal Warga
+    window.gameState.crest -= cost;
+    window.gameState.user.legal.licenses.push(licId);
+
+    if (typeof window.saveState === 'function') window.saveState();
+    if (typeof playAudioSfx === 'function') playAudioSfx('cash');
+    if (typeof showToast === 'function') showToast(`Berhasil menerbitkan ${lic.name}!`, 'success');
+}
+    
     promptAddAdmin() {
         const targetNik = prompt("Masukkan NIK / Telegram ID Warga yang mau dijadikan Admin:");
         if (!targetNik) return;
