@@ -1,143 +1,151 @@
 // ==========================================
-// MODUL EKONOMI & TRANSAKSI CREST PAY (ECONOMY.JS)
+// MODUL EKONOMI, TOKO & INVENTARIS (ECONOMY.JS)
 // ==========================================
 
 const EconomyModule = {
-    transferCrest(targetNik, amount, note = 'Transfer Crest P2P') {
-        amount = parseInt(amount);
-        if (isNaN(amount) || amount <= 0) return false;
-
-        if (window.gameState.crest < amount) {
-            if (typeof showToast === 'function') showToast('Saldo Crest tidak mencukupi!', 'error');
-            return false;
-        }
-
-        window.gameState.crest -= amount;
-        window.gameState.economy.transactions.unshift({
-            id: `TX-${Date.now()}`,
-            type: 'OUT',
-            amount: amount,
-            title: note,
-            toNik: targetNik,
-            timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-        });
-
-        window.saveState();
-        if (typeof showToast === 'function') showToast(`Berhasil mentransfer +${amount.toLocaleString()} C ke ${targetNik}`, 'success');
-        return true;
-    },
-
-    buyItem(itemId) {
-        const item = window.ITEMS_DATABASE.find(i => i.id === itemId);
-        if (!item) return;
-
-        if (window.gameState.crest < item.price) {
-            if (typeof showToast === 'function') showToast('Saldo Crest tidak cukup!', 'error');
+    // --- FITUR BELI BARANG DI MAPS / TOKO ---
+    buyItem(itemId, currentLocId = null) {
+        const item = (window.ITEMS_DATABASE || []).find(i => i.id === itemId);
+        if (!item) {
+            if (typeof showToast === 'function') showToast('Barang tidak ditemukan!', 'error');
             return;
         }
 
-        window.gameState.crest -= item.price;
+        if (!window.gameState) window.gameState = {};
+        if (!window.gameState.economy) window.gameState.economy = {};
+        if (!window.gameState.economy.inventory) window.gameState.economy.inventory = [];
 
-        if (item.healVitality > 0) {
-            window.gameState.vitality = Math.min(100, window.gameState.vitality + item.healVitality);
-            if (typeof showToast === 'function') showToast(`Memakai ${item.name} (+${item.healVitality}% Vit)!`, 'success');
-        } else {
-            window.gameState.economy.inventory.push(item);
-            if (typeof showToast === 'function') showToast(`Membeli ${item.name}! Masuk Inventory.`, 'success');
+        if ((window.gameState.crest || 0) < item.price) {
+            if (typeof showToast === 'function') showToast(`Saldo Crest kurang! Butuh ${item.price.toLocaleString()} C`, 'error');
+            return;
         }
 
-        window.saveState();
+        // Potong Saldo & Masukkan Barang ke Tas Inventaris
+        window.gameState.crest -= item.price;
+        window.gameState.economy.inventory.push({
+            instanceId: Date.now() + Math.random(),
+            id: item.id,
+            name: item.name,
+            type: item.type || 'food',
+            vitRestore: item.vitRestore || 20,
+            boughtAt: new Date().toLocaleDateString('id-ID')
+        });
+
+        if (typeof window.saveState === 'function') window.saveState();
+        if (typeof playAudioSfx === 'function') playAudioSfx('cash');
+        if (typeof showToast === 'function') showToast(`Berhasil membeli ${item.name}! Masuk ke Tas Inventaris.`, 'success');
+
+        // Re-render tampilan lokasi jika pembeli berada di peta
+        if (currentLocId && window.MapModule && typeof window.MapModule.openLocationDetail === 'function') {
+            window.MapModule.openLocationDetail(currentLocId);
+        }
     },
 
-    renderCrestPayAppUI() {
-        const crest = window.gameState.crest || 0;
-        const txs = window.gameState.economy.transactions || [];
+    // --- FITUR PAKAI / MAKAN BARANG DARI TAS ---
+    useItem(instanceId) {
+        if (!window.gameState?.economy?.inventory) return;
 
-        let txHtml = '';
-        if (txs.length === 0) {
-            txHtml = `<p class="text-[10px] text-slate-500 text-center py-3">Belum ada riwayat transaksi.</p>`;
+        const inv = window.gameState.economy.inventory;
+        const itemIndex = inv.findIndex(i => i.instanceId === instanceId || i.id === instanceId);
+
+        if (itemIndex === -1) {
+            if (typeof showToast === 'function') showToast('Barang tidak ditemukan di Tas!', 'error');
+            return;
+        }
+
+        const item = inv[itemIndex];
+        const vitGain = item.vitRestore || 20;
+
+        // Pulihkan Vitality (Maksimal 100%)
+        window.gameState.vitality = Math.min(100, (window.gameState.vitality || 0) + vitGain);
+
+        // Hapus 1 barang dari inventaris setelah dipakai
+        inv.splice(itemIndex, 1);
+
+        if (typeof window.saveState === 'function') window.saveState();
+        if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
+        if (typeof showToast === 'function') showToast(`Menggunakan ${item.name} (+${vitGain}% Vitality)`, 'success');
+
+        // Re-render UI Tas Inventaris
+        if (typeof openApp === 'function') openApp('inventory');
+    },
+
+    // --- RENDER APLIKASI TAS & ASET KEPEMILIKAN ---
+    renderInventoryAppUI() {
+        const inv = window.gameState?.economy?.inventory || [];
+        const licenses = window.gameState?.user?.legal?.licenses || [];
+        const identity = window.gameState?.user?.identity || {};
+
+        // Render Item Makanan & Barang di Tas
+        let invHtml = '';
+        if (inv.length === 0) {
+            invHtml = `<p class="text-[10px] text-slate-500 text-center py-6">Tas kamu masih kosong. Beli makanan / barang di Peta Kota!</p>`;
         } else {
-            txs.slice(0, 4).forEach(tx => {
-                txHtml += `
-                    <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+            inv.forEach((item) => {
+                invHtml += `
+                    <div class="glass-card p-3 rounded-2xl flex items-center justify-between border border-white/10">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-base shrink-0">
+                                <i class="fa-solid fa-utensils"></i>
                             </div>
                             <div>
-                                <h5 class="font-bold text-white text-[11px]">${tx.title}</h5>
-                                <span class="text-[9px] text-slate-400 font-mono">${tx.timestamp} • Ke: ${tx.toNik}</span>
+                                <h5 class="text-xs font-bold text-white">${item.name}</h5>
+                                <span class="text-[9px] text-emerald-400 font-semibold">+${item.vitRestore || 20}% Vitality</span>
                             </div>
                         </div>
-                        <span class="font-mono font-bold text-rose-400 text-xs">-${tx.amount.toLocaleString()} C</span>
+                        <button onclick="EconomyModule.useItem(${item.instanceId})" class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-md">
+                            Gunakan / Makan
+                        </button>
                     </div>
                 `;
             });
         }
 
-        let storeHtml = '';
-        window.ITEMS_DATABASE.forEach(item => {
-            storeHtml += `
-                <div class="glass-card p-3 rounded-2xl flex items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0 overflow-hidden relative">
-                            <img src="${item.iconPng}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                            <div class="hidden items-center justify-center w-full h-full text-amber-400 text-lg">
-                                <i class="fa-solid ${item.iconFa}"></i>
-                            </div>
-                        </div>
-                        <div>
-                            <h5 class="text-xs font-bold text-white">${item.name}</h5>
-                            <p class="text-[10px] text-slate-400">${item.desc}</p>
-                        </div>
+        // Render Lisensi & Surat Kepemilikan
+        let licHtml = '';
+        if (licenses.length === 0) {
+            licHtml = `<p class="text-[10px] text-slate-500 py-2">Belum ada dokumen kepemilikan.</p>`;
+        } else {
+            licenses.forEach(licId => {
+                licHtml += `
+                    <div class="p-2 glass-card rounded-xl flex items-center justify-between text-xs">
+                        <span class="font-bold text-sky-300 text-[11px]"><i class="fa-solid fa-certificate mr-1.5 text-amber-400"></i>${licId}</span>
+                        <span class="text-[9px] text-emerald-400 font-bold">Sah & Aktif</span>
                     </div>
-                    <button onclick="EconomyModule.buyItem('${item.id}'); openApp('economy');" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg shrink-0">
-                        ${item.price.toLocaleString()} C
-                    </button>
-                </div>
-            `;
-        });
+                `;
+            });
+        }
 
         return `
             <div class="space-y-4">
-                <div class="glass-ios p-5 rounded-3xl space-y-3 border border-amber-500/40 relative overflow-hidden">
+                <div class="glass-ios p-4 rounded-3xl border border-amber-500/40 space-y-2 bg-gradient-to-br from-slate-900 to-amber-950/60">
                     <div class="flex items-center justify-between">
-                        <span class="text-[10px] font-bold text-amber-400 tracking-wider">CREST PAY BANK IGNATIUS</span>
-                        <i class="fa-solid fa-wallet text-amber-400 text-sm"></i>
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-box-archive text-amber-400 text-base"></i>
+                            <h4 class="text-xs font-bold text-amber-300 uppercase tracking-wider">TAS & ASET WARGA</h4>
+                        </div>
+                        <span class="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[8px] font-bold rounded">INVENTARIS</span>
                     </div>
-                    <div>
-                        <span class="text-[9px] text-slate-400 uppercase block font-mono">Total Saldo Aktif</span>
-                        <h2 class="text-2xl font-mono font-bold text-white">${crest.toLocaleString()} <span class="text-xs text-amber-400">Crest</span></h2>
-                    </div>
-                    <div class="pt-1">
-                        <button onclick="EconomyModule.showTransferPrompt()" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg">
-                            <i class="fa-solid fa-paper-plane mr-1"></i> Kirim Crest P2P
-                        </button>
-                    </div>
+                    <p class="text-[10px] text-slate-300">Daftar item konsumsi, persediaan obat, kendaraan, & lisensi kepemilikan.</p>
                 </div>
 
+                <!-- TAB ITEM INVENTARIS -->
                 <div class="space-y-2">
-                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📊 Mutasi Terakhir</h4>
-                    <div class="space-y-2">${txHtml}</div>
+                    <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider">🎒 Makanan, Minuman & Barang Tas (${inv.length})</h4>
+                    <div class="space-y-2 max-h-60 overflow-y-auto">
+                        ${invHtml}
+                    </div>
                 </div>
 
-                <div class="space-y-2 pt-2">
-                    <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">🛒 Pasar & Supermarket Kota</h4>
-                    <div class="space-y-2">${storeHtml}</div>
+                <!-- TAB KEPEMILIKAN DOKUMEN & KENDARAAN -->
+                <div class="space-y-2 pt-2 border-t border-white/10">
+                    <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">📜 Surat Kepemilikan & Lisensi</h4>
+                    <div class="space-y-1.5">
+                        ${licHtml}
+                    </div>
                 </div>
             </div>
         `;
-    },
-
-    showTransferPrompt() {
-        const targetNik = prompt("Masukkan NIK / ID Telegram Tujuan:");
-        if (!targetNik) return;
-        const amount = prompt("Masukkan Nominal Crest:");
-        if (!amount) return;
-        const note = prompt("Catatan (Opsional):") || 'Transfer Crest P2P';
-
-        this.transferCrest(targetNik, amount, note);
-        openApp('economy');
     }
 };
 
