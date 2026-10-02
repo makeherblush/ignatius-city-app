@@ -277,13 +277,18 @@ function renderSettingsUI() {
     `;
 }
 
-// ------------------------------------------
-// Render Homescreen App Grid (Panel Admin disembunyikan untuk Warga Biasa)
+// Render Dynamic Homescreen Apps
 function renderHomescreenApps() {
     const grid = document.getElementById('homescreen-app-grid');
     if (!grid) return;
 
     let appsHtml = `
+        <div onclick="openApp('bank')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-amber-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-building-columns"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">Bank Ignatius</span>
+        </div>
         <div onclick="openApp('citymap')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-cyan-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
                 <i class="fa-solid fa-map-location-dot"></i>
@@ -302,12 +307,6 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Bursa Kerja</span>
         </div>
-        <div onclick="openApp('economy')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
-            <div class="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
-                <i class="fa-solid fa-wallet"></i>
-            </div>
-            <span class="text-[10px] font-medium text-white drop-shadow">Crest Pay</span>
-        </div>
         <div onclick="openApp('settings')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
                 <i class="fa-solid fa-gear"></i>
@@ -316,7 +315,7 @@ function renderHomescreenApps() {
         </div>
     `;
 
-    // FITUR ADMINISTRATOR: HANYA MUNCUL JIKA USER ADALAH ADMIN / OWNER!
+    // PANEL ADMIN: HANYA MUNCUL JIKA USER ADALAH ADMIN / OWNER!
     if (window.AdminModule && window.AdminModule.isAdmin && window.AdminModule.isAdmin()) {
         appsHtml += `
             <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
@@ -353,7 +352,10 @@ function openApp(appName) {
     if (!win) return;
     win.classList.remove('hidden');
 
-    if (appName === 'citymap') {
+    if (appName === 'bank') {
+        title.textContent = 'Bank Central Ignatius';
+        body.innerHTML = window.BankModule.renderBankAppUI();
+    } else if (appName === 'citymap') {
         title.textContent = 'Peta Navigasi Kota';
         body.innerHTML = window.MapModule.renderMapUI();
     } else if (appName === 'ktp') {
