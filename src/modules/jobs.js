@@ -3,7 +3,6 @@
 // ==========================================
 
 const JobsModule = {
-    // Check Status Role Pekerjaan
     isDoctorOrNurse() {
         const activeJob = window.gameState?.jobState?.activeJobId;
         return ['prof_doc_gen', 'prof_doc_surg', 'prof_nurse'].includes(activeJob);
@@ -15,21 +14,24 @@ const JobsModule = {
     },
 
     canApplyJob(jobId) {
-        const job = (window.JOBS_DATABASE || []).find(j => j.id === jobId);
+        const jobs = window.JOBS_DATABASE || [];
+        const job = jobs.find(j => j.id === jobId);
         if (!job || !job.requiredLicense) return true;
         const userLicenses = window.gameState?.user?.legal?.licenses || [];
         return userLicenses.includes(job.requiredLicense);
     },
 
     applyPermanentJob(jobId) {
-        const job = (window.JOBS_DATABASE || []).find(j => j.id === jobId);
-        if (!job || job.category !== 'tetap') return;
+        const jobs = window.JOBS_DATABASE || [];
+        const job = jobs.find(j => j.id === jobId);
+        if (!job) return;
 
         if (!this.canApplyJob(jobId)) {
             if (typeof showToast === 'function') showToast(`Syarat Kurang! Wajib lisensi ${job.requiredLicense}`, 'warning');
             return;
         }
 
+        if (!window.gameState.jobState) window.gameState.jobState = {};
         window.gameState.jobState.activeJobId = jobId;
         window.gameState.jobState.hiredAt = new Date().toLocaleDateString('id-ID');
 
@@ -39,33 +41,34 @@ const JobsModule = {
     },
 
     doWorkShift(jobId) {
-        const job = (window.JOBS_DATABASE || []).find(j => j.id === jobId);
-        if (!job) return;
+        const jobs = window.JOBS_DATABASE || [];
+        const job = jobs.find(j => j.id === jobId) || { title: 'Pekerjaan', pay: 1500, vitalityCost: 10 };
 
-        if (window.gameState.vitality < job.vitalityCost) {
+        if ((window.gameState?.vitality || 0) < job.vitalityCost) {
             if (typeof showToast === 'function') showToast(`Vitality kurang! Butuh ${job.vitalityCost}% Vit.`, 'error');
             return;
         }
 
         window.gameState.vitality -= job.vitalityCost;
-        window.gameState.crest += job.pay;
-
-        // Bunga Tabungan Otomatis 5% Setiap Selesai Shift Kerja!
-        if (window.gameState.economy?.savingsBalance > 0) {
-            const interest = Math.floor(window.gameState.economy.savingsBalance * 0.05);
-            window.gameState.economy.savingsBalance += interest;
-            if (typeof showToast === 'function') showToast(`Dapat Bunga Tabungan (+${interest.toLocaleString()} C)`, 'info');
-        }
+        window.gameState.crest = (window.gameState.crest || 0) + job.pay;
 
         if (typeof window.saveState === 'function') window.saveState();
         if (typeof showToast === 'function') showToast(`Selesai Shift ${job.title} (+${job.pay.toLocaleString()} C)`, 'success');
+        openApp('jobs');
     },
 
     renderJobsAppUI() {
+        const jobs = window.JOBS_DATABASE || [
+            { id: 'side_cleaning', title: 'Petugas Kebersihan Taman', desc: 'Bersihkan sampah area publik', pay: 800, category: 'sampingan', vitalityCost: 5 },
+            { id: 'side_courier', title: 'Kurir Paket Ekspres', desc: 'Antar paket warga sekota', pay: 1200, category: 'sampingan', vitalityCost: 10 },
+            { id: 'prof_doc_gen', title: 'Dokter Umum RSUD', desc: 'Tangani pasien & IGD', pay: 5000, category: 'tetap', vitalityCost: 15 },
+            { id: 'prof_police_patrol', title: 'Polisi Patroli', desc: 'Jaga keamanan & lantas', pay: 4500, category: 'tetap', vitalityCost: 15 }
+        ];
+
         let sideHtml = '';
         let fullHtml = '';
 
-        (window.JOBS_DATABASE || []).forEach(job => {
+        jobs.forEach(job => {
             const hasLicense = this.canApplyJob(job.id);
             const isCurrent = window.gameState?.jobState?.activeJobId === job.id;
 
@@ -76,7 +79,7 @@ const JobsModule = {
                             <h5 class="text-xs font-bold text-white">${job.title}</h5>
                             <p class="text-[10px] text-slate-400">${job.desc}</p>
                         </div>
-                        <button onclick="JobsModule.doWorkShift('${job.id}'); openApp('jobs');" class="px-3 py-1.5 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg shrink-0">
+                        <button onclick="JobsModule.doWorkShift('${job.id}')" class="px-3 py-1.5 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg shrink-0">
                             +${job.pay.toLocaleString()} C
                         </button>
                     </div>
@@ -89,11 +92,11 @@ const JobsModule = {
                             <p class="text-[10px] text-slate-400">${job.desc}</p>
                         </div>
                         ${isCurrent ? `
-                            <button onclick="JobsModule.doWorkShift('${job.id}'); openApp('jobs');" class="px-3 py-1.5 bg-sky-600 text-white font-bold text-xs rounded-xl shadow-lg shrink-0">
+                            <button onclick="JobsModule.doWorkShift('${job.id}')" class="px-3 py-1.5 bg-sky-600 text-white font-bold text-xs rounded-xl shadow-lg shrink-0">
                                 Shift (+${job.pay.toLocaleString()} C)
                             </button>
                         ` : `
-                            <button onclick="JobsModule.applyPermanentJob('${job.id}');" class="px-3 py-1.5 ${hasLicense ? 'bg-slate-800 text-slate-200' : 'bg-slate-900 text-slate-600'} font-bold text-xs rounded-xl shrink-0">
+                            <button onclick="JobsModule.applyPermanentJob('${job.id}')" class="px-3 py-1.5 ${hasLicense ? 'bg-slate-800 text-slate-200' : 'bg-slate-900 text-slate-600'} font-bold text-xs rounded-xl shrink-0">
                                 ${hasLicense ? 'Lamar' : '🔒 Terkunci'}
                             </button>
                         `}
@@ -117,14 +120,10 @@ const JobsModule = {
         `;
     },
 
-    // ==========================================
-    // HALODOC MEDIKA (DOKTER vs WARGA BIASA)
-    // ==========================================
     renderHalodocAppUI() {
         const isDoctor = this.isDoctorOrNurse();
         const calls = window.gameState?.health?.emergencyCalls || [];
 
-        // TAMPILAN KHUSUS DOKTER / PERAWAT
         if (isDoctor) {
             let callsHtml = '';
             if (calls.length === 0) {
@@ -137,7 +136,7 @@ const JobsModule = {
                                 <h5 class="text-xs font-bold text-white">${c.name} (${c.nik})</h5>
                                 <p class="text-[10px] text-rose-300 font-semibold">${c.reason}</p>
                             </div>
-                            <button onclick="JobsModule.treatMedicalCall(${idx})" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-lg shrink-0">
+                            <button onclick="JobsModule.treatMedicalCall(${idx})" class="px-3 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-xl shadow-lg shrink-0">
                                 Tangani (+3,000 C)
                             </button>
                         </div>
@@ -163,7 +162,6 @@ const JobsModule = {
             `;
         }
 
-        // TAMPILAN UNTUK WARGA BIASA
         return `
             <div class="space-y-4">
                 <div class="glass-ios p-4 rounded-3xl border border-rose-500/40 space-y-2 bg-gradient-to-br from-slate-900 to-rose-950/60">
@@ -172,15 +170,13 @@ const JobsModule = {
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="JobsModule.requestMedicalCall('Pertolongan Pingsan / Koma Vitality Drop')" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1 hover:border-rose-400/50">
+                    <button onclick="JobsModule.requestMedicalCall('Pertolongan Pingsan / Koma Vitality Drop')" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1">
                         <i class="fa-solid fa-truck-medical text-rose-400 text-lg animate-pulse"></i>
                         <span class="text-xs font-bold text-white">Panggil Ambulans</span>
-                        <span class="text-[8px] text-slate-400">Kirim panggilan IGD ke Dokter</span>
                     </button>
-                    <button onclick="JobsModule.requestMedicalCall('Konsultasi Dokter Sakit Parah')" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1 hover:border-rose-400/50">
+                    <button onclick="JobsModule.requestMedicalCall('Konsultasi Dokter Sakit Parah')" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1">
                         <i class="fa-solid fa-user-doctor text-sky-400 text-lg"></i>
                         <span class="text-xs font-bold text-white">Konsultasi Dokter</span>
-                        <span class="text-[8px] text-slate-400">Panggil dokter pemeriksa</span>
                     </button>
                 </div>
             </div>
@@ -204,27 +200,23 @@ const JobsModule = {
     },
 
     treatMedicalCall(idx) {
-        if (window.gameState.vitality < 10) {
+        if ((window.gameState?.vitality || 0) < 10) {
             if (typeof showToast === 'function') showToast('Vitality kamu tidak cukup!', 'error');
             return;
         }
 
         window.gameState.vitality -= 10;
-        window.gameState.crest += 3000;
+        window.gameState.crest = (window.gameState.crest || 0) + 3000;
         window.gameState.health.emergencyCalls.splice(idx, 1);
 
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast('Pasien berhasil ditangani! (+3,000 C, -10% Vit)', 'success');
+        if (typeof showToast === 'function') showToast('Pasien berhasil ditangani! (+3,000 C)', 'success');
         openApp('app_halodoc');
     },
 
-    // ==========================================
-    // POLRES HUB (POLISI vs WARGA BIASA)
-    // ==========================================
     renderPoliceHubAppUI() {
         const isPol = this.isPolice();
 
-        // TAMPILAN KHUSUS POLISI
         if (isPol) {
             return `
                 <div class="space-y-4">
@@ -247,7 +239,6 @@ const JobsModule = {
             `;
         }
 
-        // TAMPILAN UNTUK WARGA BIASA
         return `
             <div class="space-y-4">
                 <div class="glass-ios p-4 rounded-3xl border border-indigo-500/40 space-y-2 bg-gradient-to-br from-slate-900 to-indigo-950/60">
@@ -256,11 +247,11 @@ const JobsModule = {
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
-                    <button onclick="if(typeof showToast==='function') showToast('Laporan Kejahatan 911 terkirim ke Polisi!', 'success');" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1">
+                    <button onclick="showToast('Laporan Kejahatan 911 terkirim ke Polisi!', 'success')" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1">
                         <i class="fa-solid fa-shield-cat text-indigo-400 text-lg"></i>
                         <span class="text-xs font-bold text-white">Lapor Kejahatan 911</span>
                     </button>
-                    <button onclick="if(typeof showToast==='function') showToast('Kamu tidak memiliki E-Tilang aktif!', 'info');" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1">
+                    <button onclick="showToast('Kamu tidak memiliki E-Tilang aktif!', 'info')" class="p-3 glass-card rounded-2xl flex flex-col items-center text-center space-y-1">
                         <i class="fa-solid fa-receipt text-amber-400 text-lg"></i>
                         <span class="text-xs font-bold text-white">Bayar E-Tilang</span>
                     </button>
