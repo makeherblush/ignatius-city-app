@@ -4,7 +4,6 @@
 
 let currentInputPasscode = '';
 
-// 1. PLAY AUDIO SFX
 function playAudioSfx(type) {
     const el = document.getElementById(`audio-${type}`);
     if (el) {
@@ -13,7 +12,6 @@ function playAudioSfx(type) {
     }
 }
 
-// 2. SYSTEM TOAST NOTIFICATION iOS
 function showToast(msg, type = 'info') {
     playAudioSfx(type === 'error' ? 'error' : 'noti');
     const toast = document.getElementById('toast-ios');
@@ -27,11 +25,10 @@ function showToast(msg, type = 'info') {
     else if (type === 'error') icon.className = 'fa-solid fa-circle-xmark text-rose-400 text-base shrink-0';
     else icon.className = 'fa-solid fa-circle-info text-sky-400 text-base shrink-0';
 
-    toast.classList.remove('opacity-0', 'translate-y-2');
-    setTimeout(() => toast.classList.add('opacity-0', 'translate-y-2'), 3000);
+    toast.classList.remove('opacity-0', '-translate-y-4');
+    setTimeout(() => toast.classList.add('opacity-0', '-translate-y-4'), 3000);
 }
 
-// 3. PASSCODE KEYPAD LOGIC
 function openPasscodeKeypad() {
     playAudioSfx('keypad');
     const lockscreen = document.getElementById('screen-lockscreen');
@@ -41,9 +38,7 @@ function openPasscodeKeypad() {
         lockscreen.classList.add('hidden');
         lockscreen.style.transform = 'translateY(0)';
     }
-    if (passcodeScreen) {
-        passcodeScreen.classList.remove('hidden');
-    }
+    if (passcodeScreen) passcodeScreen.classList.remove('hidden');
 
     currentInputPasscode = '';
     renderPasscodeDots();
@@ -127,7 +122,6 @@ function lockScreenNow() {
     if (lockIcon) lockIcon.className = 'fa-solid fa-lock text-amber-400';
 }
 
-// 4. GESTURE SWIPE UP LOCKSCREEN
 function initSwipeLockscreen() {
     const lockscreen = document.getElementById('screen-lockscreen');
     if (!lockscreen) return;
@@ -136,7 +130,6 @@ function initSwipeLockscreen() {
     let currentY = 0;
     let isDragging = false;
 
-    // Touch Event (Mobile/Telegram)
     lockscreen.addEventListener('touchstart', (e) => {
         startY = e.touches[0].clientY;
         currentY = startY;
@@ -164,9 +157,7 @@ function initSwipeLockscreen() {
         if (diffY < -25) {
             lockscreen.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
             lockscreen.style.transform = 'translateY(-100%)';
-            setTimeout(() => {
-                openPasscodeKeypad();
-            }, 180);
+            setTimeout(() => { openPasscodeKeypad(); }, 180);
         } else if (Math.abs(diffY) < 10) {
             openPasscodeKeypad();
         } else {
@@ -178,7 +169,6 @@ function initSwipeLockscreen() {
         currentY = 0;
     });
 
-    // Mouse Event (Desktop)
     lockscreen.addEventListener('mousedown', (e) => {
         startY = e.clientY;
         currentY = startY;
@@ -190,9 +180,7 @@ function initSwipeLockscreen() {
         if (!isDragging) return;
         currentY = e.clientY;
         const diffY = currentY - startY;
-        if (diffY < 0) {
-            lockscreen.style.transform = `translateY(${diffY}px)`;
-        }
+        if (diffY < 0) lockscreen.style.transform = `translateY(${diffY}px)`;
     });
 
     window.addEventListener('mouseup', () => {
@@ -204,9 +192,7 @@ function initSwipeLockscreen() {
         if (diffY < -25 || Math.abs(diffY) < 5) {
             lockscreen.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
             lockscreen.style.transform = 'translateY(-100%)';
-            setTimeout(() => {
-                openPasscodeKeypad();
-            }, 180);
+            setTimeout(() => { openPasscodeKeypad(); }, 180);
         } else {
             lockscreen.style.transition = 'transform 0.2s ease-out';
             lockscreen.style.transform = 'translateY(0)';
@@ -217,7 +203,83 @@ function initSwipeLockscreen() {
     });
 }
 
-// 5. HOMESCREEN & APP MANAGER
+// ------------------------------------------
+// FITUR GANTI WALLPAPER
+// ------------------------------------------
+function setWallpaper(url) {
+    if (!url) return;
+    window.gameState.system.wallpaperUrl = url;
+    window.saveState();
+    applyWallpaperToUI(url);
+    showToast('Wallpaper berhasil diganti!', 'success');
+}
+
+function applyWallpaperToUI(url) {
+    const lockEl = document.getElementById('screen-lockscreen');
+    const homeEl = document.getElementById('screen-homescreen');
+
+    const wallUrl = url || window.gameState?.system?.wallpaperUrl || 'assets/images/wallpaper.png';
+
+    if (lockEl) {
+        lockEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('${wallUrl}')`;
+    }
+    if (homeEl) {
+        homeEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)), url('${wallUrl}')`;
+    }
+}
+
+function renderSettingsUI() {
+    return `
+        <div class="space-y-4">
+            <div class="glass-ios p-4 rounded-3xl border border-sky-500/40 space-y-3">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-gear text-sky-400 text-base"></i>
+                    <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">Pengaturan iOS</h4>
+                </div>
+                <p class="text-[10px] text-slate-300">Kustomisasi wallpaper & tema perangkat Kota Ignatius.</p>
+            </div>
+
+            <div class="glass-ios p-4 rounded-3xl border border-white/10 space-y-3">
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-image mr-1 text-amber-400"></i> Pilih Wallpaper Preset</h4>
+                
+                <div class="grid grid-cols-3 gap-2 pt-1">
+                    <button onclick="setWallpaper('assets/images/wallpaper.png')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
+                        Default iOS
+                    </button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
+                        Cyber City
+                    </button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
+                        Sunset Beach
+                    </button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
+                        Neon Dark
+                    </button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
+                        Nature Fog
+                    </button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
+                        Mountain
+                    </button>
+                </div>
+
+                <div class="pt-3 border-t border-white/10 space-y-2">
+                    <label class="text-[10px] font-semibold text-slate-400 uppercase block">Atau Input URL Gambar Kustom:</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="custom-wall-url" placeholder="https://domain.com/gambar.jpg" class="flex-1 px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-sky-500">
+                        <button onclick="const url = document.getElementById('custom-wall-url').value; if(url) setWallpaper(url);" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg">
+                            Pasang
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ------------------------------------------
+// RENDER HOMESCREEN APPS
+// ------------------------------------------
 function renderHomescreenApps() {
     const grid = document.getElementById('homescreen-app-grid');
     if (!grid) return;
@@ -240,6 +302,12 @@ function renderHomescreenApps() {
                 <i class="fa-solid fa-wallet"></i>
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Crest Pay</span>
+        </div>
+        <div onclick="openApp('settings')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-slate-700 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-gear"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">Pengaturan</span>
         </div>
         <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
@@ -282,6 +350,9 @@ function openApp(appName) {
     } else if (appName === 'economy') {
         title.textContent = 'Crest Pay & Market';
         body.innerHTML = window.EconomyModule.renderCrestPayAppUI();
+    } else if (appName === 'settings') {
+        title.textContent = 'Pengaturan iOS';
+        body.innerHTML = renderSettingsUI();
     } else if (appName === 'admin_panel') {
         title.textContent = 'Panel Control Admin';
         body.innerHTML = window.AdminModule.renderAdminPanelUI();
@@ -317,7 +388,6 @@ function handleRegisterSubmit(e) {
     }
 }
 
-// 6. UI & CLOCK UPDATE ENGINE
 function updateUI() {
     if (!window.gameState) return;
 
@@ -344,6 +414,7 @@ function updateUI() {
         avatarEl.src = identity.photoUrl;
     }
 
+    applyWallpaperToUI();
     renderHomescreenApps();
 }
 
@@ -361,9 +432,7 @@ function updateClock() {
     if (dateDisp) dateDisp.textContent = dateStr;
 }
 
-// 7. INITIALIZATION ON LOAD
 document.addEventListener('DOMContentLoaded', () => {
-    // Expand Telegram WebApp SDK
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
