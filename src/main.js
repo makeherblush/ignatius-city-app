@@ -53,7 +53,7 @@ function syncTelegramProfile() {
     }
 }
 
-// 4. HANDLER PENDAFTARAN WARGA (ANTI-STUCK / BULLETPROOF)
+// 4. HANDLER PENDAFTARAN WARGA
 function handleRegisterSubmit(e) {
     if (e) {
         e.preventDefault();
@@ -74,13 +74,11 @@ function handleRegisterSubmit(e) {
             return false;
         }
 
-        // 1. Coba registrasi via AdminModule jika tersedia
         let success = false;
         if (window.AdminModule && typeof window.AdminModule.registerCitizen === 'function') {
             success = window.AdminModule.registerCitizen(name, gender, passcode);
         }
 
-        // 2. Fallback Direct State Management (Jaminan tidak akan pernah stuck)
         if (!success) {
             if (!window.gameState) window.gameState = {};
             if (!window.gameState.user) window.gameState.user = { identity: {}, family: {}, legal: {} };
@@ -107,16 +105,11 @@ function handleRegisterSubmit(e) {
                 window.gameState.system.ownerId = nik;
             }
 
-            if (typeof window.saveState === 'function') {
-                window.saveState();
-            } else {
-                localStorage.setItem('IGNATIUS_MASTER_STATE_V7', JSON.stringify(window.gameState));
-            }
+            if (typeof window.saveState === 'function') window.saveState();
         }
 
         playAudioSfx('unlock');
 
-        // 3. PAKSA PERPINDAHAN LAYAR (SEMBUNYIKAN REGISTER, TAMPILKAN LOCKSCREEN)
         const regScreen = document.getElementById('screen-register');
         const lockScreen = document.getElementById('screen-lockscreen');
 
@@ -252,7 +245,7 @@ function lockScreenNow() {
     if (lockIcon) lockIcon.className = 'fa-solid fa-lock text-amber-400';
 }
 
-// 6. GESTURE SWIPE UP LOCKSCREEN
+// 6. GESTURE SWIPE UP LOCKSCREEN (FIXED & RESPONSIVE)
 function initSwipeLockscreen() {
     const lockscreen = document.getElementById('screen-lockscreen');
     if (!lockscreen) return;
@@ -261,7 +254,11 @@ function initSwipeLockscreen() {
     let currentY = 0;
     let isDragging = false;
 
+    lockscreen.style.transform = 'translateY(0)';
+
+    // TOUCH EVENTS (MOBILE & TELEGRAM WEBAPP)
     lockscreen.addEventListener('touchstart', (e) => {
+        if (!e.touches || e.touches.length === 0) return;
         startY = e.touches[0].clientY;
         currentY = startY;
         isDragging = true;
@@ -269,7 +266,7 @@ function initSwipeLockscreen() {
     }, { passive: true });
 
     lockscreen.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
+        if (!isDragging || !e.touches || e.touches.length === 0) return;
         currentY = e.touches[0].clientY;
         const diffY = currentY - startY;
 
@@ -285,11 +282,11 @@ function initSwipeLockscreen() {
 
         const diffY = currentY - startY;
 
-        if (diffY < -25) {
+        if (diffY < -20) {
             lockscreen.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
             lockscreen.style.transform = 'translateY(-100%)';
             setTimeout(() => { openPasscodeKeypad(); }, 180);
-        } else if (Math.abs(diffY) < 10) {
+        } else if (Math.abs(diffY) < 8) {
             openPasscodeKeypad();
         } else {
             lockscreen.style.transition = 'transform 0.2s ease-out';
@@ -300,6 +297,7 @@ function initSwipeLockscreen() {
         currentY = 0;
     });
 
+    // MOUSE EVENTS (PC DESKTOP)
     lockscreen.addEventListener('mousedown', (e) => {
         startY = e.clientY;
         currentY = startY;
@@ -320,7 +318,7 @@ function initSwipeLockscreen() {
 
         const diffY = currentY - startY;
 
-        if (diffY < -25 || Math.abs(diffY) < 5) {
+        if (diffY < -20 || Math.abs(diffY) < 5) {
             lockscreen.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
             lockscreen.style.transform = 'translateY(-100%)';
             setTimeout(() => { openPasscodeKeypad(); }, 180);
@@ -372,7 +370,6 @@ function renderSettingsUI() {
 
             <div class="glass-ios p-4 rounded-3xl border border-white/10 space-y-3">
                 <h4 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-image mr-1 text-amber-400"></i> Pilih Wallpaper Preset</h4>
-                
                 <div class="grid grid-cols-3 gap-2 pt-1">
                     <button onclick="setWallpaper('assets/images/wallpaper.png')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Default iOS</button>
                     <button onclick="setWallpaper('https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Cyber City</button>
@@ -380,14 +377,6 @@ function renderSettingsUI() {
                     <button onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Neon Dark</button>
                     <button onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Nature Fog</button>
                     <button onclick="setWallpaper('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Mountain</button>
-                </div>
-
-                <div class="pt-3 border-t border-white/10 space-y-2">
-                    <label class="text-[10px] font-semibold text-slate-400 uppercase block">Atau Input URL Gambar Kustom:</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="custom-wall-url" placeholder="https://domain.com/gambar.jpg" class="flex-1 px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-sky-500">
-                        <button onclick="const url = document.getElementById('custom-wall-url').value; if(url) setWallpaper(url);" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg">Pasang</button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -444,7 +433,7 @@ function renderHomescreenApps() {
         </div>
     `;
 
-    // CHECK OWNER DIRECTLY VIA TELEGRAM ID OR ADMIN MODULE
+    // Direct Telegram ID Check untuk Owner
     const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const isOwner = (tgId && String(tgId) === '8853198899') || 
                     (window.AdminModule && typeof window.AdminModule.isAdmin === 'function' && window.AdminModule.isAdmin());
@@ -463,66 +452,53 @@ function renderHomescreenApps() {
     grid.innerHTML = appsHtml;
 }
 
-    // PANEL ADMIN: HANYA MUNCUL JIKA USER ADALAH ADMIN / OWNER!
-    if (window.AdminModule && window.AdminModule.isAdmin && window.AdminModule.isAdmin()) {
-        appsHtml += `
-            <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
-                <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </div>
-                <span class="text-[10px] font-medium text-white drop-shadow">Panel Admin</span>
-            </div>
-        `;
-    }
-
-    // Dynamic Apps Profesi
-    const unlockedApps = (window.gameState && window.gameState.jobState) ? window.gameState.jobState.unlockedCustomApps : [];
-    if (unlockedApps.includes('app_halodoc')) {
-        appsHtml += `<div onclick="openApp('app_halodoc')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer"><div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20 animate-pulse"><i class="fa-solid fa-hospital"></i></div><span class="text-[10px] font-medium text-rose-300 drop-shadow">Halodoc</span></div>`;
-    }
-    if (unlockedApps.includes('app_police_hub')) {
-        appsHtml += `<div onclick="openApp('app_police_hub')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer"><div class="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20"><i class="fa-solid fa-shield-halved"></i></div><span class="text-[10px] font-medium text-indigo-300 drop-shadow">Polres Hub</span></div>`;
-    }
-
-    grid.innerHTML = appsHtml;
-}
-
 function openApp(appName) {
-    playAudioSfx('keypad');
+    if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
     const win = document.getElementById('screen-app-window');
     const title = document.getElementById('app-window-title');
     const body = document.getElementById('app-window-body');
 
-    if (!win) return;
+    if (!win || !body || !title) return;
     win.classList.remove('hidden');
 
-    if (appName === 'bank') {
+    if (appName === 'ktp') {
+        title.textContent = 'KTP Digital Capil';
+        body.innerHTML = (window.AdminModule && typeof window.AdminModule.renderKTPAppUI === 'function') 
+            ? window.AdminModule.renderKTPAppUI() 
+            : '<div class="text-center py-10 text-rose-400">Gagal memuat KTP. Periksa file src/modules/admin.js</div>';
+    } else if (appName === 'bank') {
         title.textContent = 'Bank Central Ignatius';
-        body.innerHTML = window.BankModule ? window.BankModule.renderBankAppUI() : 'Loading...';
+        body.innerHTML = (window.BankModule && typeof window.BankModule.renderBankAppUI === 'function') 
+            ? window.BankModule.renderBankAppUI() 
+            : 'Sistem Bank Siap';
     } else if (appName === 'citymap') {
         title.textContent = 'Peta Navigasi Kota';
-        body.innerHTML = window.MapModule ? window.MapModule.renderMapUI() : 'Loading...';
-    } else if (appName === 'ktp') {
-        title.textContent = 'KTP Digital Capil';
-        body.innerHTML = window.AdminModule ? window.AdminModule.renderKTPAppUI() : 'Loading...';
+        body.innerHTML = (window.MapModule && typeof window.MapModule.renderMapUI === 'function') 
+            ? window.MapModule.renderMapUI() 
+            : 'Sistem Peta Siap';
     } else if (appName === 'jobs') {
         title.textContent = 'Bursa Kerja Ignatius';
-        body.innerHTML = window.JobsModule ? window.JobsModule.renderJobsAppUI() : 'Loading...';
-    } else if (appName === 'economy') {
-        title.textContent = 'Crest Pay & Market';
-        body.innerHTML = window.EconomyModule ? window.EconomyModule.renderCrestPayAppUI() : 'Loading...';
-    } else if (appName === 'settings') {
-        title.textContent = 'Pengaturan iOS';
-        body.innerHTML = renderSettingsUI();
+        body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderJobsAppUI === 'function') 
+            ? window.JobsModule.renderJobsAppUI() 
+            : 'Sistem Bursa Kerja Siap';
     } else if (appName === 'admin_panel') {
         title.textContent = 'Panel Control Admin';
-        body.innerHTML = window.AdminModule ? window.AdminModule.renderAdminPanelUI() : 'Loading...';
+        body.innerHTML = (window.AdminModule && typeof window.AdminModule.renderAdminPanelUI === 'function') 
+            ? window.AdminModule.renderAdminPanelUI() 
+            : 'Panel Admin Siap';
     } else if (appName === 'app_halodoc') {
         title.textContent = 'Halodoc Medika Central';
-        body.innerHTML = window.JobsModule ? window.JobsModule.renderHalodocAppUI() : 'Loading...';
+        body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderHalodocAppUI === 'function') 
+            ? window.JobsModule.renderHalodocAppUI() 
+            : 'Halodoc Siap';
     } else if (appName === 'app_police_hub') {
         title.textContent = 'Polres Hub & Patrolex';
-        body.innerHTML = window.JobsModule ? window.JobsModule.renderPoliceHubAppUI() : 'Loading...';
+        body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderPoliceHubAppUI === 'function') 
+            ? window.JobsModule.renderPoliceHubAppUI() 
+            : 'Polres Hub Siap';
+    } else if (appName === 'settings') {
+        title.textContent = 'Pengaturan iOS';
+        body.innerHTML = typeof renderSettingsUI === 'function' ? renderSettingsUI() : 'Pengaturan Siap';
     }
 }
 
@@ -590,7 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const regScreen = document.getElementById('screen-register');
     const lockScreen = document.getElementById('screen-lockscreen');
 
-    // Cek status pendaftaran
     const isRegistered = Boolean(window.gameState && window.gameState.registered === true);
 
     if (isRegistered) {
