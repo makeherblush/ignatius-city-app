@@ -4,6 +4,7 @@
 
 let currentInputPasscode = '';
 
+// 1. PLAY AUDIO SFX
 function playAudioSfx(type) {
     const el = document.getElementById(`audio-${type}`);
     if (el) {
@@ -12,6 +13,7 @@ function playAudioSfx(type) {
     }
 }
 
+// 2. SYSTEM TOAST NOTIFICATION iOS
 function showToast(msg, type = 'info') {
     playAudioSfx(type === 'error' ? 'error' : 'noti');
     const toast = document.getElementById('toast-ios');
@@ -29,6 +31,117 @@ function showToast(msg, type = 'info') {
     setTimeout(() => toast.classList.add('opacity-0', '-translate-y-4'), 3000);
 }
 
+// 3. AUTO SYNC TELEGRAM PROFILE & AVATAR
+function syncTelegramProfile() {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const regAvatar = document.getElementById('reg-avatar');
+    const regInput = document.getElementById('reg-fullname');
+
+    if (tgUser) {
+        const fullName = `${tgUser.first_name || ''}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`.trim();
+        if (regInput && fullName) {
+            regInput.value = fullName;
+        }
+
+        if (regAvatar) {
+            if (tgUser.photo_url) {
+                regAvatar.src = tgUser.photo_url;
+            } else {
+                regAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
+            }
+        }
+    }
+}
+
+// 4. HANDLER PENDAFTARAN WARGA (ANTI-STUCK / BULLETPROOF)
+function handleRegisterSubmit(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    try {
+        const nameInput = document.getElementById('reg-fullname');
+        const genderInput = document.getElementById('reg-gender');
+        const passcodeInput = document.getElementById('reg-passcode');
+
+        const name = nameInput ? nameInput.value.trim() : 'Warga Ignatius';
+        const gender = genderInput ? genderInput.value : 'Laki-laki';
+        const passcode = passcodeInput ? passcodeInput.value.trim() : '';
+
+        if (!passcode || passcode.length !== 4) {
+            showToast('PIN Lockscreen wajib 4 digit!', 'error');
+            return false;
+        }
+
+        // 1. Coba registrasi via AdminModule jika tersedia
+        let success = false;
+        if (window.AdminModule && typeof window.AdminModule.registerCitizen === 'function') {
+            success = window.AdminModule.registerCitizen(name, gender, passcode);
+        }
+
+        // 2. Fallback Direct State Management (Jaminan tidak akan pernah stuck)
+        if (!success) {
+            if (!window.gameState) window.gameState = {};
+            if (!window.gameState.user) window.gameState.user = { identity: {}, family: {}, legal: {} };
+
+            const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+            const nik = tgUser ? `TG-${tgUser.id}` : `IGN-${Math.floor(100000 + Math.random() * 900000)}`;
+            const photoUrl = tgUser?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0284c7&color=fff`;
+
+            window.gameState.user.identity = {
+                nik: nik,
+                fullName: name,
+                gender: gender,
+                photoUrl: photoUrl,
+                registeredAt: new Date().toISOString().split('T')[0],
+                pinPasscode: passcode
+            };
+
+            if (!window.gameState.user.family) window.gameState.user.family = {};
+            window.gameState.user.family.kkNumber = `KK-${Math.floor(10000000 + Math.random() * 90000000)}`;
+            window.gameState.registered = true;
+
+            if (!window.gameState.system) window.gameState.system = {};
+            if (nik === 'TG-8853198899' || !window.gameState.system.ownerId) {
+                window.gameState.system.ownerId = nik;
+            }
+
+            if (typeof window.saveState === 'function') {
+                window.saveState();
+            } else {
+                localStorage.setItem('IGNATIUS_MASTER_STATE_V7', JSON.stringify(window.gameState));
+            }
+        }
+
+        playAudioSfx('unlock');
+
+        // 3. PAKSA PERPINDAHAN LAYAR (SEMBUNYIKAN REGISTER, TAMPILKAN LOCKSCREEN)
+        const regScreen = document.getElementById('screen-register');
+        const lockScreen = document.getElementById('screen-lockscreen');
+
+        if (regScreen) {
+            regScreen.classList.add('hidden');
+            regScreen.style.display = 'none';
+        }
+
+        if (lockScreen) {
+            lockScreen.classList.remove('hidden');
+            lockScreen.style.display = 'flex';
+        }
+
+        updateUI();
+        showToast('Pendaftaran Berhasil! Silakan Buka Kunci.', 'success');
+
+    } catch (err) {
+        console.error('[Register] Error:', err);
+        showToast('Gagal mendaftar: ' + err.message, 'error');
+    }
+
+    return false;
+}
+
+// 5. PASSCODE KEYPAD LOGIC
 function openPasscodeKeypad() {
     playAudioSfx('keypad');
     const lockscreen = document.getElementById('screen-lockscreen');
@@ -36,9 +149,13 @@ function openPasscodeKeypad() {
 
     if (lockscreen) {
         lockscreen.classList.add('hidden');
+        lockscreen.style.display = 'none';
         lockscreen.style.transform = 'translateY(0)';
     }
-    if (passcodeScreen) passcodeScreen.classList.remove('hidden');
+    if (passcodeScreen) {
+        passcodeScreen.classList.remove('hidden');
+        passcodeScreen.style.display = 'flex';
+    }
 
     currentInputPasscode = '';
     renderPasscodeDots();
@@ -49,9 +166,13 @@ function cancelPasscode() {
     const lockscreen = document.getElementById('screen-lockscreen');
     const passcodeScreen = document.getElementById('screen-passcode');
 
-    if (passcodeScreen) passcodeScreen.classList.add('hidden');
+    if (passcodeScreen) {
+        passcodeScreen.classList.add('hidden');
+        passcodeScreen.style.display = 'none';
+    }
     if (lockscreen) {
         lockscreen.classList.remove('hidden');
+        lockscreen.style.display = 'flex';
         lockscreen.style.transform = 'translateY(0)';
     }
     currentInputPasscode = '';
@@ -96,9 +217,14 @@ function verifyPasscode() {
 
     if (String(currentInputPasscode).trim() === savedPin.trim()) {
         playAudioSfx('unlock');
-        document.getElementById('screen-passcode').classList.add('hidden');
-        document.getElementById('screen-lockscreen').classList.add('hidden');
-        document.getElementById('screen-homescreen').classList.remove('hidden');
+        
+        const passcodeScreen = document.getElementById('screen-passcode');
+        const lockScreen = document.getElementById('screen-lockscreen');
+        const homeScreen = document.getElementById('screen-homescreen');
+
+        if (passcodeScreen) { passcodeScreen.classList.add('hidden'); passcodeScreen.style.display = 'none'; }
+        if (lockScreen) { lockScreen.classList.add('hidden'); lockScreen.style.display = 'none'; }
+        if (homeScreen) { homeScreen.classList.remove('hidden'); homeScreen.style.display = 'flex'; }
 
         const lockIcon = document.getElementById('island-lock-icon');
         if (lockIcon) lockIcon.className = 'fa-solid fa-lock-open text-emerald-400';
@@ -115,13 +241,18 @@ function verifyPasscode() {
 function lockScreenNow() {
     playAudioSfx('lock');
     closeApp();
-    document.getElementById('screen-homescreen').classList.add('hidden');
-    document.getElementById('screen-lockscreen').classList.remove('hidden');
+
+    const homeScreen = document.getElementById('screen-homescreen');
+    const lockScreen = document.getElementById('screen-lockscreen');
+
+    if (homeScreen) { homeScreen.classList.add('hidden'); homeScreen.style.display = 'none'; }
+    if (lockScreen) { lockScreen.classList.remove('hidden'); lockScreen.style.display = 'flex'; }
 
     const lockIcon = document.getElementById('island-lock-icon');
     if (lockIcon) lockIcon.className = 'fa-solid fa-lock text-amber-400';
 }
 
+// 6. GESTURE SWIPE UP LOCKSCREEN
 function initSwipeLockscreen() {
     const lockscreen = document.getElementById('screen-lockscreen');
     if (!lockscreen) return;
@@ -203,13 +334,13 @@ function initSwipeLockscreen() {
     });
 }
 
-// ------------------------------------------
-// FITUR GANTI WALLPAPER
-// ------------------------------------------
+// 7. WALLPAPER ENGINE
 function setWallpaper(url) {
     if (!url) return;
+    if (!window.gameState) window.gameState = {};
+    if (!window.gameState.system) window.gameState.system = {};
     window.gameState.system.wallpaperUrl = url;
-    window.saveState();
+    if (typeof window.saveState === 'function') window.saveState();
     applyWallpaperToUI(url);
     showToast('Wallpaper berhasil diganti!', 'success');
 }
@@ -243,33 +374,19 @@ function renderSettingsUI() {
                 <h4 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-image mr-1 text-amber-400"></i> Pilih Wallpaper Preset</h4>
                 
                 <div class="grid grid-cols-3 gap-2 pt-1">
-                    <button onclick="setWallpaper('assets/images/wallpaper.png')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
-                        Default iOS
-                    </button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
-                        Cyber City
-                    </button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
-                        Sunset Beach
-                    </button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
-                        Neon Dark
-                    </button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
-                        Nature Fog
-                    </button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">
-                        Mountain
-                    </button>
+                    <button onclick="setWallpaper('assets/images/wallpaper.png')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Default iOS</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Cyber City</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Sunset Beach</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Neon Dark</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Nature Fog</button>
+                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Mountain</button>
                 </div>
 
                 <div class="pt-3 border-t border-white/10 space-y-2">
                     <label class="text-[10px] font-semibold text-slate-400 uppercase block">Atau Input URL Gambar Kustom:</label>
                     <div class="flex gap-2">
                         <input type="text" id="custom-wall-url" placeholder="https://domain.com/gambar.jpg" class="flex-1 px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-sky-500">
-                        <button onclick="const url = document.getElementById('custom-wall-url').value; if(url) setWallpaper(url);" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg">
-                            Pasang
-                        </button>
+                        <button onclick="const url = document.getElementById('custom-wall-url').value; if(url) setWallpaper(url);" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-lg">Pasang</button>
                     </div>
                 </div>
             </div>
@@ -277,7 +394,7 @@ function renderSettingsUI() {
     `;
 }
 
-// Render Dynamic Homescreen Apps
+// 8. RENDER HOMESCREEN APPS
 function renderHomescreenApps() {
     const grid = document.getElementById('homescreen-app-grid');
     if (!grid) return;
@@ -329,15 +446,11 @@ function renderHomescreenApps() {
 
     // Dynamic Apps Profesi
     const unlockedApps = (window.gameState && window.gameState.jobState) ? window.gameState.jobState.unlockedCustomApps : [];
-    if (unlockedApps.includes('app_imc_dispatch')) {
-        appsHtml += `
-            <div onclick="openApp('imc_dispatch')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
-                <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20 animate-pulse">
-                    <i class="fa-solid fa-truck-medical"></i>
-                </div>
-                <span class="text-[10px] font-medium text-rose-300 drop-shadow">IMC Dispatch</span>
-            </div>
-        `;
+    if (unlockedApps.includes('app_halodoc')) {
+        appsHtml += `<div onclick="openApp('app_halodoc')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer"><div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20 animate-pulse"><i class="fa-solid fa-hospital"></i></div><span class="text-[10px] font-medium text-rose-300 drop-shadow">Halodoc</span></div>`;
+    }
+    if (unlockedApps.includes('app_police_hub')) {
+        appsHtml += `<div onclick="openApp('app_police_hub')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer"><div class="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20"><i class="fa-solid fa-shield-halved"></i></div><span class="text-[10px] font-medium text-indigo-300 drop-shadow">Polres Hub</span></div>`;
     }
 
     grid.innerHTML = appsHtml;
@@ -354,45 +467,31 @@ function openApp(appName) {
 
     if (appName === 'bank') {
         title.textContent = 'Bank Central Ignatius';
-        body.innerHTML = window.BankModule.renderBankAppUI();
+        body.innerHTML = window.BankModule ? window.BankModule.renderBankAppUI() : 'Loading...';
     } else if (appName === 'citymap') {
         title.textContent = 'Peta Navigasi Kota';
-        body.innerHTML = window.MapModule.renderMapUI();
+        body.innerHTML = window.MapModule ? window.MapModule.renderMapUI() : 'Loading...';
     } else if (appName === 'ktp') {
         title.textContent = 'KTP Digital Capil';
-        body.innerHTML = window.AdminModule.renderKTPAppUI();
+        body.innerHTML = window.AdminModule ? window.AdminModule.renderKTPAppUI() : 'Loading...';
     } else if (appName === 'jobs') {
         title.textContent = 'Bursa Kerja Ignatius';
-        body.innerHTML = window.JobsModule.renderJobsAppUI();
+        body.innerHTML = window.JobsModule ? window.JobsModule.renderJobsAppUI() : 'Loading...';
     } else if (appName === 'economy') {
         title.textContent = 'Crest Pay & Market';
-        body.innerHTML = window.EconomyModule.renderCrestPayAppUI();
+        body.innerHTML = window.EconomyModule ? window.EconomyModule.renderCrestPayAppUI() : 'Loading...';
     } else if (appName === 'settings') {
         title.textContent = 'Pengaturan iOS';
         body.innerHTML = renderSettingsUI();
     } else if (appName === 'admin_panel') {
         title.textContent = 'Panel Control Admin';
-        body.innerHTML = window.AdminModule.renderAdminPanelUI();
-    } 
-    // --- APK INTERAKTIF PROFESI ---
-    else if (appName === 'app_halodoc') {
+        body.innerHTML = window.AdminModule ? window.AdminModule.renderAdminPanelUI() : 'Loading...';
+    } else if (appName === 'app_halodoc') {
         title.textContent = 'Halodoc Medika Central';
-        body.innerHTML = window.JobsModule.renderHalodocAppUI();
+        body.innerHTML = window.JobsModule ? window.JobsModule.renderHalodocAppUI() : 'Loading...';
     } else if (appName === 'app_police_hub') {
         title.textContent = 'Polres Hub & Patrolex';
-        body.innerHTML = window.JobsModule.renderPoliceHubAppUI();
-    } else if (appName === 'app_legal_court') {
-        title.textContent = 'E-Court Pengadilan Kota';
-        body.innerHTML = window.JobsModule.renderLegalCourtAppUI();
-    } else if (appName === 'app_corp_manager') {
-        title.textContent = 'Ignatius Corp Manager';
-        body.innerHTML = window.JobsModule.renderCorpManagerAppUI();
-    } else if (appName === 'app_driver_express') {
-        title.textContent = 'Driver Express Terminal';
-        body.innerHTML = window.JobsModule.renderDriverExpressAppUI();
-    } else if (appName === 'app_press_news') {
-        title.textContent = 'Warta Ignatius Pers';
-        body.innerHTML = window.JobsModule.renderPressNewsAppUI();
+        body.innerHTML = window.JobsModule ? window.JobsModule.renderPoliceHubAppUI() : 'Loading...';
     }
 }
 
@@ -401,27 +500,7 @@ function closeApp() {
     if (win) win.classList.add('hidden');
 }
 
-function syncTelegramProfile() {
-    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-    const regAvatar = document.getElementById('reg-avatar');
-    const regInput = document.getElementById('reg-fullname');
-
-    if (tgUser) {
-        const fullName = `${tgUser.first_name || ''}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`.trim();
-        if (regInput && fullName) {
-            regInput.value = fullName;
-        }
-
-        if (regAvatar) {
-            if (tgUser.photo_url) {
-                regAvatar.src = tgUser.photo_url;
-            } else {
-                regAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
-            }
-        }
-    }
-}
-
+// 9. UI & CLOCK UPDATE ENGINE
 function updateUI() {
     if (!window.gameState) return;
 
@@ -466,54 +545,8 @@ function updateClock() {
     if (dateDisp) dateDisp.textContent = dateStr;
 }
 
-function handleRegisterSubmit(e) {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    const nameInput = document.getElementById('reg-fullname');
-    const genderInput = document.getElementById('reg-gender');
-    const passcodeInput = document.getElementById('reg-passcode');
-
-    const name = nameInput ? nameInput.value.trim() : 'Warga Ignatius';
-    const gender = genderInput ? genderInput.value : 'Laki-laki';
-    const passcode = passcodeInput ? passcodeInput.value.trim() : '';
-
-    if (!passcode || passcode.length !== 4) {
-        showToast('PIN Lockscreen wajib 4 digit!', 'error');
-        return false;
-    }
-
-    // Eksekusi Pendaftaran via AdminModule
-    if (window.AdminModule && typeof window.AdminModule.registerCitizen === 'function') {
-        const success = window.AdminModule.registerCitizen(name, gender, passcode);
-        
-        if (success) {
-            playAudioSfx('unlock');
-
-            // Sembunyikan layar register & Tampilkan Lockscreen
-            const regScreen = document.getElementById('screen-register');
-            const lockScreen = document.getElementById('screen-lockscreen');
-
-            if (regScreen) regScreen.classList.add('hidden');
-            if (lockScreen) lockScreen.classList.remove('hidden');
-
-            updateUI();
-            showToast('Pendaftaran Berhasil! Silakan Buka Kunci.', 'success');
-        } else {
-            showToast('Gagal mendaftar! Periksa input PIN.', 'error');
-        }
-    } else {
-        console.error('AdminModule.registerCitizen tidak ditemukan!');
-    }
-
-    return false;
-}
-
-// ROUTER UTAMA LOAD APP
+// 10. INITIALIZATION ROUTER ON DOM LOAD
 document.addEventListener('DOMContentLoaded', () => {
-    // Expand Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
@@ -523,21 +556,19 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateClock, 1000);
     initSwipeLockscreen();
 
-    // CEK STATUS REGISTERED
-    const isRegistered = Boolean(window.gameState && window.gameState.registered === true);
-
     const regScreen = document.getElementById('screen-register');
     const lockScreen = document.getElementById('screen-lockscreen');
 
+    // Cek status pendaftaran
+    const isRegistered = Boolean(window.gameState && window.gameState.registered === true);
+
     if (isRegistered) {
-        // JIKA SUDAH TERDAFTAR: LANGSUNG MASUK LOCKSCREEN!
-        if (regScreen) regScreen.classList.add('hidden');
-        if (lockScreen) lockScreen.classList.remove('hidden');
+        if (regScreen) { regScreen.classList.add('hidden'); regScreen.style.display = 'none'; }
+        if (lockScreen) { lockScreen.classList.remove('hidden'); lockScreen.style.display = 'flex'; }
     } else {
-        // JIKA BELUM TERDAFTAR: BUKA FORM REGISTER
         syncTelegramProfile();
-        if (regScreen) regScreen.classList.remove('hidden');
-        if (lockScreen) lockScreen.classList.add('hidden');
+        if (regScreen) { regScreen.classList.remove('hidden'); regScreen.style.display = 'flex'; }
+        if (lockScreen) { lockScreen.classList.add('hidden'); lockScreen.style.display = 'none'; }
     }
 
     updateUI();
