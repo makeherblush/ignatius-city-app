@@ -1,9 +1,19 @@
+/* ==========================================
+   IOS STYLE & GLASSMORPHISM (IOS-STYLE.CSS)
+   ========================================== */
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
     user-select: none;
+    -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
 }
 
+.font-ios {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+}
+
+/* Glassmorphism Classes */
 .glass-ios {
     background: rgba(35, 35, 45, 0.75);
     backdrop-filter: blur(25px);
@@ -18,11 +28,14 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Scrollbar Hide */
 ::-webkit-scrollbar {
     width: 0px;
+    height: 0px;
     background: transparent;
 }
 
+/* Micro Interactions */
 .keypad-btn:active {
     background-color: rgba(255, 255, 255, 0.3) !important;
     transform: scale(0.95);
@@ -33,27 +46,10 @@ body {
     opacity: 0.8;
 }
 
-/* Animasi & Indicator Swipe Lockscreen iOS */
+/* Lockscreen Swipe Lock */
 #screen-lockscreen {
     will-change: transform;
     touch-action: none;
-}
-
-.swipe-indicator-bar {
-    width: 140px;
-    height: 5px;
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 10px;
-    margin: 0 auto;
-    animation: bounceUp 2s infinite;
-}
-
-#screen-lockscreen {
-    will-change: transform;
-    touch-action: none; /* Mencegah layar browser kepotong/ke-refresh saat di-swipe */
-}
-@keyframes bounceUp {
-    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-8px); }
-    60% { transform: translateY(-4px); }
+    -webkit-user-select: none;
+    user-select: none;
 }
