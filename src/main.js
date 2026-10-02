@@ -4,7 +4,6 @@
 
 let currentInputPasscode = '';
 
-// 1. PLAY AUDIO SFX
 function playAudioSfx(type) {
     const el = document.getElementById(`audio-${type}`);
     if (el) {
@@ -13,7 +12,6 @@ function playAudioSfx(type) {
     }
 }
 
-// 2. SYSTEM TOAST NOTIFICATION iOS
 function showToast(msg, type = 'info') {
     playAudioSfx(type === 'error' ? 'error' : 'noti');
     const toast = document.getElementById('toast-ios');
@@ -31,7 +29,6 @@ function showToast(msg, type = 'info') {
     setTimeout(() => toast.classList.add('opacity-0', '-translate-y-4'), 3000);
 }
 
-// 3. AUTO SYNC TELEGRAM PROFILE & AVATAR
 function syncTelegramProfile() {
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
     const regAvatar = document.getElementById('reg-avatar');
@@ -39,26 +36,17 @@ function syncTelegramProfile() {
 
     if (tgUser) {
         const fullName = `${tgUser.first_name || ''}${tgUser.last_name ? ' ' + tgUser.last_name : ''}`.trim();
-        if (regInput && fullName) {
-            regInput.value = fullName;
-        }
+        if (regInput && fullName) regInput.value = fullName;
 
         if (regAvatar) {
-            if (tgUser.photo_url) {
-                regAvatar.src = tgUser.photo_url;
-            } else {
-                regAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
-            }
+            if (tgUser.photo_url) regAvatar.src = tgUser.photo_url;
+            else regAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName || 'Warga')}&background=0284c7&color=fff`;
         }
     }
 }
 
-// 4. HANDLER PENDAFTARAN WARGA
 function handleRegisterSubmit(e) {
-    if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+    if (e) { e.preventDefault(); e.stopPropagation(); }
 
     try {
         const nameInput = document.getElementById('reg-fullname');
@@ -74,38 +62,8 @@ function handleRegisterSubmit(e) {
             return false;
         }
 
-        let success = false;
         if (window.AdminModule && typeof window.AdminModule.registerCitizen === 'function') {
-            success = window.AdminModule.registerCitizen(name, gender, passcode);
-        }
-
-        if (!success) {
-            if (!window.gameState) window.gameState = {};
-            if (!window.gameState.user) window.gameState.user = { identity: {}, family: {}, legal: {} };
-
-            const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
-            const nik = tgUser ? `TG-${tgUser.id}` : `IGN-${Math.floor(100000 + Math.random() * 900000)}`;
-            const photoUrl = tgUser?.photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0284c7&color=fff`;
-
-            window.gameState.user.identity = {
-                nik: nik,
-                fullName: name,
-                gender: gender,
-                photoUrl: photoUrl,
-                registeredAt: new Date().toISOString().split('T')[0],
-                pinPasscode: passcode
-            };
-
-            if (!window.gameState.user.family) window.gameState.user.family = {};
-            window.gameState.user.family.kkNumber = `KK-${Math.floor(10000000 + Math.random() * 90000000)}`;
-            window.gameState.registered = true;
-
-            if (!window.gameState.system) window.gameState.system = {};
-            if (nik === 'TG-8853198899' || !window.gameState.system.ownerId) {
-                window.gameState.system.ownerId = nik;
-            }
-
-            if (typeof window.saveState === 'function') window.saveState();
+            window.AdminModule.registerCitizen(name, gender, passcode);
         }
 
         playAudioSfx('unlock');
@@ -113,79 +71,50 @@ function handleRegisterSubmit(e) {
         const regScreen = document.getElementById('screen-register');
         const lockScreen = document.getElementById('screen-lockscreen');
 
-        if (regScreen) {
-            regScreen.classList.add('hidden');
-            regScreen.style.display = 'none';
-        }
-
-        if (lockScreen) {
-            lockScreen.classList.remove('hidden');
-            lockScreen.style.display = 'flex';
-        }
+        if (regScreen) { regScreen.classList.add('hidden'); regScreen.style.display = 'none'; }
+        if (lockScreen) { lockScreen.classList.remove('hidden'); lockScreen.style.display = 'flex'; }
 
         updateUI();
         showToast('Pendaftaran Berhasil! Silakan Buka Kunci.', 'success');
 
     } catch (err) {
         console.error('[Register] Error:', err);
-        showToast('Gagal mendaftar: ' + err.message, 'error');
     }
-
     return false;
 }
 
-// 5. PASSCODE KEYPAD LOGIC
+// PASSCODE & LOCKSCREEN
 function openPasscodeKeypad() {
     playAudioSfx('keypad');
     const lockscreen = document.getElementById('screen-lockscreen');
     const passcodeScreen = document.getElementById('screen-passcode');
 
-    if (lockscreen) {
-        lockscreen.classList.add('hidden');
-        lockscreen.style.display = 'none';
-        lockscreen.style.transform = 'translateY(0)';
-    }
-    if (passcodeScreen) {
-        passcodeScreen.classList.remove('hidden');
-        passcodeScreen.style.display = 'flex';
-    }
+    if (lockscreen) { lockscreen.classList.add('hidden'); lockscreen.style.display = 'none'; }
+    if (passcodeScreen) { passcodeScreen.classList.remove('hidden'); passcodeScreen.style.display = 'flex'; }
 
     currentInputPasscode = '';
     renderPasscodeDots();
 }
 
-function cancelPasscode() {
-    playAudioSfx('keypad');
-    const lockscreen = document.getElementById('screen-lockscreen');
-    const passcodeScreen = document.getElementById('screen-passcode');
+function verifyPasscode() {
+    const savedPin = String((window.gameState?.user?.identity?.pinPasscode) || '1234');
 
-    if (passcodeScreen) {
-        passcodeScreen.classList.add('hidden');
-        passcodeScreen.style.display = 'none';
-    }
-    if (lockscreen) {
-        lockscreen.classList.remove('hidden');
-        lockscreen.style.display = 'flex';
-        lockscreen.style.transform = 'translateY(0)';
-    }
-    currentInputPasscode = '';
-}
+    if (String(currentInputPasscode).trim() === savedPin.trim()) {
+        playAudioSfx('unlock');
+        
+        const passcodeScreen = document.getElementById('screen-passcode');
+        const lockScreen = document.getElementById('screen-lockscreen');
+        const homeScreen = document.getElementById('screen-homescreen');
 
-function pressKey(num) {
-    if (currentInputPasscode.length < 4) {
-        playAudioSfx('keypad');
-        currentInputPasscode += String(num);
-        renderPasscodeDots();
-        if (currentInputPasscode.length === 4) {
-            setTimeout(verifyPasscode, 150);
-        }
-    }
-}
+        if (passcodeScreen) { passcodeScreen.classList.add('hidden'); passcodeScreen.style.display = 'none'; }
+        if (lockScreen) { lockScreen.classList.add('hidden'); lockScreen.style.display = 'none'; }
+        if (homeScreen) { homeScreen.classList.remove('hidden'); homeScreen.style.display = 'flex'; }
 
-function deleteKey() {
-    if (currentInputPasscode.length > 0) {
-        playAudioSfx('keypad');
-        currentInputPasscode = currentInputPasscode.slice(0, -1);
+        currentInputPasscode = '';
+    } else {
+        playAudioSfx('error');
+        showToast('PIN Kunci Salah!', 'error');
+        currentInputPasscode = '';
         renderPasscodeDots();
     }
 }
@@ -202,31 +131,19 @@ function renderPasscodeDots() {
     dotsContainer.innerHTML = html;
 }
 
-function verifyPasscode() {
-    const savedPin = String(
-        (window.gameState && window.gameState.user && window.gameState.user.identity && window.gameState.user.identity.pinPasscode) ||
-        '1234'
-    );
+function pressKey(num) {
+    if (currentInputPasscode.length < 4) {
+        playAudioSfx('keypad');
+        currentInputPasscode += String(num);
+        renderPasscodeDots();
+        if (currentInputPasscode.length === 4) setTimeout(verifyPasscode, 150);
+    }
+}
 
-    if (String(currentInputPasscode).trim() === savedPin.trim()) {
-        playAudioSfx('unlock');
-        
-        const passcodeScreen = document.getElementById('screen-passcode');
-        const lockScreen = document.getElementById('screen-lockscreen');
-        const homeScreen = document.getElementById('screen-homescreen');
-
-        if (passcodeScreen) { passcodeScreen.classList.add('hidden'); passcodeScreen.style.display = 'none'; }
-        if (lockScreen) { lockScreen.classList.add('hidden'); lockScreen.style.display = 'none'; }
-        if (homeScreen) { homeScreen.classList.remove('hidden'); homeScreen.style.display = 'flex'; }
-
-        const lockIcon = document.getElementById('island-lock-icon');
-        if (lockIcon) lockIcon.className = 'fa-solid fa-lock-open text-emerald-400';
-
-        currentInputPasscode = '';
-    } else {
-        playAudioSfx('error');
-        showToast('PIN Kunci Salah!', 'error');
-        currentInputPasscode = '';
+function deleteKey() {
+    if (currentInputPasscode.length > 0) {
+        playAudioSfx('keypad');
+        currentInputPasscode = currentInputPasscode.slice(0, -1);
         renderPasscodeDots();
     }
 }
@@ -240,150 +157,31 @@ function lockScreenNow() {
 
     if (homeScreen) { homeScreen.classList.add('hidden'); homeScreen.style.display = 'none'; }
     if (lockScreen) { lockScreen.classList.remove('hidden'); lockScreen.style.display = 'flex'; }
-
-    const lockIcon = document.getElementById('island-lock-icon');
-    if (lockIcon) lockIcon.className = 'fa-solid fa-lock text-amber-400';
 }
 
-// 6. GESTURE SWIPE UP LOCKSCREEN (FIXED & RESPONSIVE)
 function initSwipeLockscreen() {
     const lockscreen = document.getElementById('screen-lockscreen');
     if (!lockscreen) return;
 
-    let startY = 0;
-    let currentY = 0;
-    let isDragging = false;
+    let startY = 0, currentY = 0, isDragging = false;
 
-    lockscreen.style.transform = 'translateY(0)';
-
-    // TOUCH EVENTS (MOBILE & TELEGRAM WEBAPP)
     lockscreen.addEventListener('touchstart', (e) => {
         if (!e.touches || e.touches.length === 0) return;
         startY = e.touches[0].clientY;
         currentY = startY;
         isDragging = true;
-        lockscreen.style.transition = 'none';
     }, { passive: true });
-
-    lockscreen.addEventListener('touchmove', (e) => {
-        if (!isDragging || !e.touches || e.touches.length === 0) return;
-        currentY = e.touches[0].clientY;
-        const diffY = currentY - startY;
-
-        if (diffY < 0) {
-            if (e.cancelable) e.preventDefault();
-            lockscreen.style.transform = `translateY(${diffY}px)`;
-        }
-    }, { passive: false });
 
     lockscreen.addEventListener('touchend', () => {
         if (!isDragging) return;
         isDragging = false;
-
-        const diffY = currentY - startY;
-
-        if (diffY < -20) {
-            lockscreen.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
-            lockscreen.style.transform = 'translateY(-100%)';
-            setTimeout(() => { openPasscodeKeypad(); }, 180);
-        } else if (Math.abs(diffY) < 8) {
-            openPasscodeKeypad();
-        } else {
-            lockscreen.style.transition = 'transform 0.2s ease-out';
-            lockscreen.style.transform = 'translateY(0)';
-        }
-
-        startY = 0;
-        currentY = 0;
+        if (currentY - startY < -20 || Math.abs(currentY - startY) < 8) openPasscodeKeypad();
     });
 
-    // MOUSE EVENTS (PC DESKTOP)
-    lockscreen.addEventListener('mousedown', (e) => {
-        startY = e.clientY;
-        currentY = startY;
-        isDragging = true;
-        lockscreen.style.transition = 'none';
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        currentY = e.clientY;
-        const diffY = currentY - startY;
-        if (diffY < 0) lockscreen.style.transform = `translateY(${diffY}px)`;
-    });
-
-    window.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        isDragging = false;
-
-        const diffY = currentY - startY;
-
-        if (diffY < -20 || Math.abs(diffY) < 5) {
-            lockscreen.style.transition = 'transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1)';
-            lockscreen.style.transform = 'translateY(-100%)';
-            setTimeout(() => { openPasscodeKeypad(); }, 180);
-        } else {
-            lockscreen.style.transition = 'transform 0.2s ease-out';
-            lockscreen.style.transform = 'translateY(0)';
-        }
-
-        startY = 0;
-        currentY = 0;
-    });
+    lockscreen.addEventListener('click', () => openPasscodeKeypad());
 }
 
-// 7. WALLPAPER ENGINE
-function setWallpaper(url) {
-    if (!url) return;
-    if (!window.gameState) window.gameState = {};
-    if (!window.gameState.system) window.gameState.system = {};
-    window.gameState.system.wallpaperUrl = url;
-    if (typeof window.saveState === 'function') window.saveState();
-    applyWallpaperToUI(url);
-    showToast('Wallpaper berhasil diganti!', 'success');
-}
-
-function applyWallpaperToUI(url) {
-    const lockEl = document.getElementById('screen-lockscreen');
-    const homeEl = document.getElementById('screen-homescreen');
-
-    const wallUrl = url || window.gameState?.system?.wallpaperUrl || 'assets/images/wallpaper.png';
-
-    if (lockEl) {
-        lockEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url('${wallUrl}')`;
-    }
-    if (homeEl) {
-        homeEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)), url('${wallUrl}')`;
-    }
-}
-
-function renderSettingsUI() {
-    return `
-        <div class="space-y-4">
-            <div class="glass-ios p-4 rounded-3xl border border-sky-500/40 space-y-3">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-gear text-sky-400 text-base"></i>
-                    <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">Pengaturan iOS</h4>
-                </div>
-                <p class="text-[10px] text-slate-300">Kustomisasi wallpaper & tema perangkat Kota Ignatius.</p>
-            </div>
-
-            <div class="glass-ios p-4 rounded-3xl border border-white/10 space-y-3">
-                <h4 class="text-xs font-bold text-white uppercase tracking-wider"><i class="fa-solid fa-image mr-1 text-amber-400"></i> Pilih Wallpaper Preset</h4>
-                <div class="grid grid-cols-3 gap-2 pt-1">
-                    <button onclick="setWallpaper('assets/images/wallpaper.png')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Default iOS</button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1519501025264-65ba15a82390?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Cyber City</button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Sunset Beach</button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Neon Dark</button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Nature Fog</button>
-                    <button onclick="setWallpaper('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80&w=600')" class="p-2 glass-card rounded-xl text-[10px] font-bold text-white border border-white/10 hover:border-sky-400">Mountain</button>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// 8. RENDER HOMESCREEN APPS
+// RENDER HOMESCREEN APPS (LENGKAP TANPA DUPLIKAT)
 function renderHomescreenApps() {
     const grid = document.getElementById('homescreen-app-grid');
     if (!grid) return;
@@ -393,7 +191,7 @@ function renderHomescreenApps() {
             <div class="w-14 h-14 rounded-2xl bg-amber-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
                 <i class="fa-solid fa-building-columns"></i>
             </div>
-            <span class="text-[10px] font-medium text-white drop-shadow">Bank Ignatius</span>
+            <span class="text-[10px] font-medium text-white drop-shadow">Bank Central</span>
         </div>
         <div onclick="openApp('citymap')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-cyan-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
@@ -413,6 +211,18 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Bursa Kerja</span>
         </div>
+        <div onclick="openApp('shop')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-rose-500 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">IgnaShopee</span>
+        </div>
+        <div onclick="openApp('inventory')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center text-slate-950 text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-box-archive"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">Tas & Aset</span>
+        </div>
         <div onclick="openApp('app_halodoc')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
             <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
                 <i class="fa-solid fa-hospital"></i>
@@ -431,15 +241,9 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Pengaturan</span>
         </div>
-        <div onclick="openApp('inventory')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
-            <div class="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center text-slate-950 text-2xl shadow-lg border border-white/20">
-                <i class="fa-solid fa-box-archive"></i>
-            </div>
-            <span class="text-[10px] font-medium text-white drop-shadow">Tas & Aset</span>
-        </div>
     `;
 
-    // Direct Telegram ID Check untuk Owner
+    // Panel Admin khusus Owner Telegram ID 8853198899
     const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const isOwner = (tgId && String(tgId) === '8853198899') || 
                     (window.AdminModule && typeof window.AdminModule.isAdmin === 'function' && window.AdminModule.isAdmin());
@@ -448,7 +252,7 @@ function renderHomescreenApps() {
         appsHtml += `
             <div onclick="openApp('admin_panel')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
                 <div class="w-14 h-14 rounded-2xl bg-rose-600 flex items-center justify-center text-white text-2xl shadow-lg border border-white/20">
-                    <i class="fa-solid fa-shield-halved"></i>
+                    <i class="fa-solid fa-user-shield"></i>
                 </div>
                 <span class="text-[10px] font-medium text-white drop-shadow">Panel Admin</span>
             </div>
@@ -458,6 +262,7 @@ function renderHomescreenApps() {
     grid.innerHTML = appsHtml;
 }
 
+// ROUTER APLIKASI
 function openApp(appName) {
     if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
     const win = document.getElementById('screen-app-window');
@@ -476,17 +281,32 @@ function openApp(appName) {
         title.textContent = 'Bank Central Ignatius';
         body.innerHTML = (window.BankModule && typeof window.BankModule.renderBankAppUI === 'function') 
             ? window.BankModule.renderBankAppUI() 
-            : 'Sistem Bank Siap';
+            : 'Bank Central Siap';
     } else if (appName === 'citymap') {
         title.textContent = 'Peta Navigasi Kota';
         body.innerHTML = (window.MapModule && typeof window.MapModule.renderMapUI === 'function') 
             ? window.MapModule.renderMapUI() 
-            : 'Sistem Peta Siap';
+            : 'Peta Kota Siap';
     } else if (appName === 'jobs') {
         title.textContent = 'Bursa Kerja Ignatius';
         body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderJobsAppUI === 'function') 
             ? window.JobsModule.renderJobsAppUI() 
-            : 'Sistem Bursa Kerja Siap';
+            : 'Bursa Kerja Siap';
+    } else if (appName === 'shop') {
+        title.textContent = 'IgnaShopee & Toko Kota';
+        body.innerHTML = (window.ShopModule && typeof window.ShopModule.renderShopAppUI === 'function') 
+            ? window.ShopModule.renderShopAppUI() 
+            : 'Toko Kota Siap';
+    } else if (appName === 'inventory') {
+        title.textContent = 'Tas & Aset Warga';
+        body.innerHTML = (window.EconomyModule && typeof window.EconomyModule.renderInventoryAppUI === 'function') 
+            ? window.EconomyModule.renderInventoryAppUI() 
+            : 'Tas & Aset Siap';
+    } else if (appName === 'messages') {
+        title.textContent = 'IgnaTalk (Pesan)';
+        body.innerHTML = (window.MessagesModule && typeof window.MessagesModule.renderMessagesAppUI === 'function') 
+            ? window.MessagesModule.renderMessagesAppUI() 
+            : 'IgnaTalk Siap';
     } else if (appName === 'admin_panel') {
         title.textContent = 'Panel Control Admin';
         body.innerHTML = (window.AdminModule && typeof window.AdminModule.renderAdminPanelUI === 'function') 
@@ -502,24 +322,6 @@ function openApp(appName) {
         body.innerHTML = (window.JobsModule && typeof window.JobsModule.renderPoliceHubAppUI === 'function') 
             ? window.JobsModule.renderPoliceHubAppUI() 
             : 'Polres Hub Siap';
-    } else if (appName === 'settings') {
-        title.textContent = 'Pengaturan iOS';
-        body.innerHTML = typeof renderSettingsUI === 'function' ? renderSettingsUI() : 'Pengaturan Siap';
-   } else if (appName === 'messages') {
-        title.textContent = 'IgnaTalk (Pesan)';
-        body.innerHTML = (window.MessagesModule && typeof window.MessagesModule.renderMessagesAppUI === 'function') 
-            ? window.MessagesModule.renderMessagesAppUI() 
-            : 'Sistem Pesan Siap';
-    } else if (appName === 'inventory') {
-        title.textContent = 'Tas & Inventaris Warga';
-        body.innerHTML = (window.EconomyModule && typeof window.EconomyModule.renderInventoryAppUI === 'function') 
-            ? window.EconomyModule.renderInventoryAppUI() 
-            : 'Sistem Inventaris Siap';
-    } else if (appName === 'shop') {
-    title.textContent = 'IgnaShopee & Toko Kota';
-    body.innerHTML = (window.ShopModule && typeof window.ShopModule.renderShopAppUI === 'function') 
-        ? window.ShopModule.renderShopAppUI() 
-        : 'Sistem Toko Siap';
     }
 }
 
@@ -528,7 +330,6 @@ function closeApp() {
     if (win) win.classList.add('hidden');
 }
 
-// 9. UI & CLOCK UPDATE ENGINE
 function updateUI() {
     if (!window.gameState) return;
 
@@ -544,18 +345,12 @@ function updateUI() {
 
     const nameEl = document.getElementById('home-user-name');
     const nikEl = document.getElementById('home-user-nik');
-    const lockNameEl = document.getElementById('lockscreen-citizen-name');
     const avatarEl = document.getElementById('home-user-avatar');
 
     if (nameEl) nameEl.textContent = identity.fullName || 'Warga Ignatius';
     if (nikEl) nikEl.textContent = `NIK: ${identity.nik || '-'}`;
-    if (lockNameEl) lockNameEl.textContent = identity.fullName || 'Warga Terdaftar';
+    if (avatarEl && identity.photoUrl) avatarEl.src = identity.photoUrl;
 
-    if (avatarEl && identity.photoUrl) {
-        avatarEl.src = identity.photoUrl;
-    }
-
-    applyWallpaperToUI();
     renderHomescreenApps();
 }
 
@@ -573,7 +368,6 @@ function updateClock() {
     if (dateDisp) dateDisp.textContent = dateStr;
 }
 
-// 10. INITIALIZATION ROUTER ON DOM LOAD
 document.addEventListener('DOMContentLoaded', () => {
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
