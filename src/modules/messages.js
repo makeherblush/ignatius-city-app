@@ -61,30 +61,33 @@ const MessagesModule = {
     },
 
     sendMessage() {
-        this.initChats();
-        const input = document.getElementById('chat-input-msg');
-        if (!input || !input.value.trim()) return;
+    this.initChats();
+    const input = document.getElementById('chat-input-msg');
+    if (!input || !input.value.trim()) return;
 
-        const text = input.value.trim();
-        const activeNik = window.gameState.chats.activeChatNik;
-        if (!activeNik) return;
+    const text = input.value.trim();
+    const activeNik = window.gameState.chats.activeChatNik;
+    if (!activeNik) return;
 
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
-        if (!window.gameState.chats.messagesHistory[activeNik]) {
-            window.gameState.chats.messagesHistory[activeNik] = [];
-        }
+    if (!window.gameState.chats.messagesHistory[activeNik]) {
+        window.gameState.chats.messagesHistory[activeNik] = [];
+    }
 
-        window.gameState.chats.messagesHistory[activeNik].push({
-            sender: 'me',
-            text: text,
-            time: timeStr
-        });
+    // Simpan pesan murni dari pengirim
+    window.gameState.chats.messagesHistory[activeNik].push({
+        sender: 'me',
+        text: text,
+        time: timeStr
+    });
 
-        input.value = '';
-        if (typeof window.saveState === 'function') window.saveState();
-        if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
+    input.value = '';
+    if (typeof window.saveState === 'function') window.saveState();
+    if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
+    if (typeof openApp === 'function') openApp('messages');
+}
 
         // Simulated Response / Auto Reply
         setTimeout(() => {
