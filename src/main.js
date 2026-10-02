@@ -422,29 +422,6 @@ function syncTelegramProfile() {
     }
 }
 
-function handleRegisterSubmit(e) {
-    e.preventDefault();
-    const name = document.getElementById('reg-fullname').value;
-    const gender = document.getElementById('reg-gender').value;
-    const passcode = document.getElementById('reg-passcode').value;
-
-    if (!passcode || passcode.length !== 4) {
-        showToast('PIN Lockscreen harus 4 digit!', 'error');
-        return;
-    }
-
-    if (window.AdminModule && window.AdminModule.registerCitizen) {
-        const success = window.AdminModule.registerCitizen(name, gender, passcode);
-        if (success) {
-            playAudioSfx('unlock');
-            document.getElementById('screen-register').classList.add('hidden');
-            document.getElementById('screen-lockscreen').classList.remove('hidden');
-            updateUI();
-            showToast('Pendaftaran Berhasil! Silakan Buka Kunci.', 'success');
-        }
-    }
-}
-
 function updateUI() {
     if (!window.gameState) return;
 
@@ -489,7 +466,54 @@ function updateClock() {
     if (dateDisp) dateDisp.textContent = dateStr;
 }
 
+function handleRegisterSubmit(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    const nameInput = document.getElementById('reg-fullname');
+    const genderInput = document.getElementById('reg-gender');
+    const passcodeInput = document.getElementById('reg-passcode');
+
+    const name = nameInput ? nameInput.value.trim() : 'Warga Ignatius';
+    const gender = genderInput ? genderInput.value : 'Laki-laki';
+    const passcode = passcodeInput ? passcodeInput.value.trim() : '';
+
+    if (!passcode || passcode.length !== 4) {
+        showToast('PIN Lockscreen wajib 4 digit!', 'error');
+        return false;
+    }
+
+    // Eksekusi Pendaftaran via AdminModule
+    if (window.AdminModule && typeof window.AdminModule.registerCitizen === 'function') {
+        const success = window.AdminModule.registerCitizen(name, gender, passcode);
+        
+        if (success) {
+            playAudioSfx('unlock');
+
+            // Sembunyikan layar register & Tampilkan Lockscreen
+            const regScreen = document.getElementById('screen-register');
+            const lockScreen = document.getElementById('screen-lockscreen');
+
+            if (regScreen) regScreen.classList.add('hidden');
+            if (lockScreen) lockScreen.classList.remove('hidden');
+
+            updateUI();
+            showToast('Pendaftaran Berhasil! Silakan Buka Kunci.', 'success');
+        } else {
+            showToast('Gagal mendaftar! Periksa input PIN.', 'error');
+        }
+    } else {
+        console.error('AdminModule.registerCitizen tidak ditemukan!');
+    }
+
+    return false;
+}
+
+// ROUTER UTAMA LOAD APP
 document.addEventListener('DOMContentLoaded', () => {
+    // Expand Telegram WebApp
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
@@ -499,11 +523,21 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateClock, 1000);
     initSwipeLockscreen();
 
-    if (!window.gameState.registered) {
-        syncTelegramProfile();
-        document.getElementById('screen-register').classList.remove('hidden');
+    // CEK STATUS REGISTERED
+    const isRegistered = Boolean(window.gameState && window.gameState.registered === true);
+
+    const regScreen = document.getElementById('screen-register');
+    const lockScreen = document.getElementById('screen-lockscreen');
+
+    if (isRegistered) {
+        // JIKA SUDAH TERDAFTAR: LANGSUNG MASUK LOCKSCREEN!
+        if (regScreen) regScreen.classList.add('hidden');
+        if (lockScreen) lockScreen.classList.remove('hidden');
     } else {
-        document.getElementById('screen-lockscreen').classList.remove('hidden');
+        // JIKA BELUM TERDAFTAR: BUKA FORM REGISTER
+        syncTelegramProfile();
+        if (regScreen) regScreen.classList.remove('hidden');
+        if (lockScreen) lockScreen.classList.add('hidden');
     }
 
     updateUI();
