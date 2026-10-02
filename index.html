@@ -110,34 +110,34 @@
                 </div>
             </div>
             
-            <!-- 3. PASSCODE KEYPAD -->
-            <div id="screen-passcode" class="absolute inset-0 z-35 glass-ios p-6 flex flex-col justify-between items-center text-white hidden backdrop-blur-2xl">
-                <div class="pt-12 text-center space-y-3">
-                    <i class="fa-solid fa-lock text-xl text-amber-400"></i>
-                    <h3 class="text-sm font-semibold">Masukkan PIN Kunci</h3>
-                    <div class="flex justify-center gap-3 py-2" id="passcode-dots">
-                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-                        <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
-                    </div>
-                </div>
+           <!-- 3. PASSCODE KEYPAD (BG GELAP SOLID AGAR TIDAK TEMBUS/TRANSPARAN) -->
+<div id="screen-passcode" class="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-2xl p-6 flex flex-col justify-between items-center text-white hidden transition-all duration-300">
+    <div class="pt-12 text-center space-y-3">
+        <i class="fa-solid fa-lock text-xl text-amber-400"></i>
+        <h3 class="text-sm font-semibold">Masukkan PIN Kunci</h3>
+        <div class="flex justify-center gap-3 py-2" id="passcode-dots">
+            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+            <div class="w-3.5 h-3.5 rounded-full border-2 border-white/60"></div>
+        </div>
+    </div>
 
-                <div class="w-full max-w-[260px] grid grid-cols-3 gap-4 mb-6">
-                    <button onclick="pressKey('1')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">1</button>
-                    <button onclick="pressKey('2')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">2</button>
-                    <button onclick="pressKey('3')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">3</button>
-                    <button onclick="pressKey('4')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">4</button>
-                    <button onclick="pressKey('5')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">5</button>
-                    <button onclick="pressKey('6')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">6</button>
-                    <button onclick="pressKey('7')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">7</button>
-                    <button onclick="pressKey('8')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">8</button>
-                    <button onclick="pressKey('9')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">9</button>
-                    <button onclick="cancelPasscode()" class="w-16 h-16 text-xs text-slate-400 mx-auto flex items-center justify-center">Batal</button>
-                    <button onclick="pressKey('0')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">0</button>
-                    <button onclick="deleteKey()" class="w-16 h-16 text-slate-300 mx-auto flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
-                </div>
-            </div>
+    <div class="w-full max-w-[260px] grid grid-cols-3 gap-4 mb-6">
+        <button onclick="pressKey('1')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">1</button>
+        <button onclick="pressKey('2')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">2</button>
+        <button onclick="pressKey('3')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">3</button>
+        <button onclick="pressKey('4')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">4</button>
+        <button onclick="pressKey('5')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">5</button>
+        <button onclick="pressKey('6')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">6</button>
+        <button onclick="pressKey('7')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">7</button>
+        <button onclick="pressKey('8')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">8</button>
+        <button onclick="pressKey('9')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">9</button>
+        <button onclick="cancelPasscode()" class="w-16 h-16 text-xs text-slate-400 mx-auto flex items-center justify-center">Batal</button>
+        <button onclick="pressKey('0')" class="keypad-btn w-16 h-16 rounded-full glass-card text-xl font-bold mx-auto flex items-center justify-center">0</button>
+        <button onclick="deleteKey()" class="w-16 h-16 text-slate-300 mx-auto flex items-center justify-center"><i class="fa-solid fa-delete-left"></i></button>
+    </div>
+</div>
 
             <!-- 4. HOMESCREEN iOS -->
             <div id="screen-homescreen" class="absolute inset-0 z-20 bg-cover bg-center p-5 flex flex-col justify-between hidden" style="background-image: linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.8)), url('assets/images/wallpaper.png');">
