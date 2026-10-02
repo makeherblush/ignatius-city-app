@@ -431,6 +431,12 @@ function renderHomescreenApps() {
             </div>
             <span class="text-[10px] font-medium text-white drop-shadow">Pengaturan</span>
         </div>
+        <div onclick="openApp('inventory')" class="app-icon flex flex-col items-center gap-1.5 cursor-pointer">
+            <div class="w-14 h-14 rounded-2xl bg-amber-500 flex items-center justify-center text-slate-950 text-2xl shadow-lg border border-white/20">
+                <i class="fa-solid fa-box-archive"></i>
+            </div>
+            <span class="text-[10px] font-medium text-white drop-shadow">Tas & Aset</span>
+        </div>
     `;
 
     // Direct Telegram ID Check untuk Owner
@@ -504,6 +510,11 @@ function openApp(appName) {
         body.innerHTML = (window.MessagesModule && typeof window.MessagesModule.renderMessagesAppUI === 'function') 
             ? window.MessagesModule.renderMessagesAppUI() 
             : 'Sistem Pesan Siap';
+    } else if (appName === 'inventory') {
+        title.textContent = 'Tas & Inventaris Warga';
+        body.innerHTML = (window.EconomyModule && typeof window.EconomyModule.renderInventoryAppUI === 'function') 
+            ? window.EconomyModule.renderInventoryAppUI() 
+            : 'Sistem Inventaris Siap';
     }
 }
 
