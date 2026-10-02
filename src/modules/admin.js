@@ -3,7 +3,7 @@
 // ==========================================
 
 const AdminModule = {
-    // Check Status Owner
+    // Check Status Owner via ID Telegram 8853198899
     isOwner() {
         const TARGET_OWNER_ID = '8853198899';
         const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -33,7 +33,7 @@ const AdminModule = {
         return false;
     },
 
-    // Toggle 3D Flip KTP Card
+    // 3D Flip Card KTP Animation
     flipKtpCard() {
         if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
         const cardInner = document.getElementById('ktp-card-inner');
@@ -42,7 +42,36 @@ const AdminModule = {
         }
     },
 
-    // Register Logic
+    // Fitur Ambil SIM / Lisensi dari Peta/Capil
+    applyLicense(licId) {
+        const lic = (window.LICENSES_DATABASE || []).find(l => l.id === licId);
+        if (!lic) return;
+
+        if (!window.gameState) window.gameState = {};
+        if (!window.gameState.user) window.gameState.user = {};
+        if (!window.gameState.user.legal) window.gameState.user.legal = {};
+        if (!window.gameState.user.legal.licenses) window.gameState.user.legal.licenses = [];
+
+        if (window.gameState.user.legal.licenses.includes(licId)) {
+            if (typeof showToast === 'function') showToast('Kamu sudah memiliki lisensi/dokumen ini!', 'info');
+            return;
+        }
+
+        const cost = lic.cost || 0;
+        if ((window.gameState.crest || 0) < cost) {
+            if (typeof showToast === 'function') showToast(`Saldo Crest tidak cukup! Butuh ${cost.toLocaleString()} C`, 'error');
+            return;
+        }
+
+        window.gameState.crest -= cost;
+        window.gameState.user.legal.licenses.push(licId);
+
+        if (typeof window.saveState === 'function') window.saveState();
+        if (typeof playAudioSfx === 'function') playAudioSfx('cash');
+        if (typeof showToast === 'function') showToast(`Berhasil menerbitkan ${lic.name}!`, 'success');
+    },
+
+    // Register Logic Warga
     registerCitizen(fullName, gender, passcode) {
         if (!passcode || String(passcode).trim().length !== 4) {
             if (typeof showToast === 'function') showToast('PIN Lockscreen harus 4 digit!', 'error');
@@ -88,11 +117,11 @@ const AdminModule = {
         return true;
     },
 
+    // Dukcapil Nikah via NIK
     registerMarriage() {
         const spouseNik = prompt("Masukkan NIK / ID Telegram Pasangan:");
         if (!spouseNik) return;
-        
-        const spouseName = prompt("Masukkan Nama Pasangan (Opsional):") || `Warga (${spouseNik})`;
+        const spouseName = prompt("Nama Pasangan (Opsional):") || `Warga (${spouseNik})`;
 
         if (!window.gameState.user.family) window.gameState.user.family = {};
         window.gameState.user.family.spouseName = spouseName;
@@ -100,15 +129,14 @@ const AdminModule = {
         window.gameState.user.family.marriageDate = new Date().toLocaleDateString('id-ID');
 
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Pernikahan tersinkronisasi dengan NIK ${spouseNik}!`, 'success');
+        if (typeof showToast === 'function') showToast(`Status Pernikahan dicatat dengan NIK ${spouseNik}!`, 'success');
         if (typeof openApp === 'function') openApp('ktp');
     },
 
-    // Dukcapil Tambah Anggota KK (Direct NIK Sync)
+    // Dukcapil Anggota KK via NIK
     addChildToKK() {
         const childNik = prompt("Masukkan NIK / ID Telegram Anggota Keluarga:");
         if (!childNik) return;
-
         const childName = prompt("Nama Anggota Keluarga (Opsional):") || `Anggota (${childNik})`;
 
         if (!window.gameState.user.family) window.gameState.user.family = {};
@@ -120,8 +148,8 @@ const AdminModule = {
         if (typeof showToast === 'function') showToast(`Anggota keluarga NIK ${childNik} berhasil ditambahkan!`, 'success');
         if (typeof openApp === 'function') openApp('ktp');
     },
-    
-    // RENDER KTP DIGITAL 3D FLIP CARD
+
+    // Render KTP 3D
     renderKTPAppUI() {
         const user = window.gameState?.user || {};
         const identity = user.identity || {};
@@ -201,10 +229,6 @@ const AdminModule = {
                                     <span class="text-slate-400">Pasangan:</span>
                                     <span class="font-bold text-amber-300">${family.spouseName ? `${family.spouseName} (${family.spouseNik})` : 'Belum Menikah'}</span>
                                 </div>
-                                <div class="flex justify-between border-b border-white/5 pb-1">
-                                    <span class="text-slate-400">Kepala Keluarga:</span>
-                                    <span class="font-bold text-white">${family.isHeadOfFamily ? 'YA' : 'TIDAK'}</span>
-                                </div>
                             </div>
 
                             <div class="flex items-center justify-between border-t border-white/10 pt-2">
@@ -242,7 +266,7 @@ const AdminModule = {
         `;
     },
 
-    // RENDER PANEL CONTROL ADMIN
+    // Render Control Panel Admin
     renderAdminPanelUI() {
         const isOwner = this.isOwner();
         const isAdmin = this.isAdmin();
@@ -268,9 +292,7 @@ const AdminModule = {
                 adminListHtml += `
                     <div class="p-2 glass-card rounded-xl flex items-center justify-between text-xs">
                         <span class="font-mono text-sky-400 text-[11px]">${id}</span>
-                        ${isOwner ? `
-                            <button onclick="AdminModule.removeAdminById('${id}'); openApp('admin_panel');" class="text-[10px] text-rose-400 font-bold hover:underline">Hapus</button>
-                        ` : ''}
+                        ${isOwner ? `<button onclick="AdminModule.removeAdminById('${id}'); openApp('admin_panel');" class="text-[10px] text-rose-400 font-bold hover:underline">Hapus</button>` : ''}
                     </div>
                 `;
             });
@@ -310,16 +332,12 @@ const AdminModule = {
                 ${isOwner ? `
                     <div class="glass-ios p-4 rounded-3xl border border-amber-500/40 space-y-3">
                         <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">👑 TAMBAH ADMIN (KHUSUS OWNER)</h4>
-                        
                         <button onclick="AdminModule.promptAddAdmin()" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg">
                             + Tambah Admin Baru (Input NIK / ID)
                         </button>
-
                         <div class="space-y-1.5 pt-2 border-t border-white/10">
                             <span class="text-[10px] text-slate-400 uppercase font-mono block">Daftar Admin Aktif:</span>
-                            <div class="space-y-1.5 max-h-32 overflow-y-auto">
-                                ${adminListHtml}
-                            </div>
+                            <div class="space-y-1.5 max-h-32 overflow-y-auto">${adminListHtml}</div>
                         </div>
                     </div>
                 ` : ''}
@@ -349,37 +367,6 @@ SKCK: ${user.legal?.skckStatus || 'CLEAN'}
         if (typeof showToast === 'function') showToast(`Warga ${targetNik} resmi dipenjara ${minutes} menit!`, 'error');
     },
 
-    applyLicense(licId) {
-    const lic = (window.LICENSES_DATABASE || []).find(l => l.id === licId);
-    if (!lic) return;
-
-    if (!window.gameState) window.gameState = {};
-    if (!window.gameState.user) window.gameState.user = {};
-    if (!window.gameState.user.legal) window.gameState.user.legal = {};
-    if (!window.gameState.user.legal.licenses) window.gameState.user.legal.licenses = [];
-
-    // Cek apakah sudah punya
-    if (window.gameState.user.legal.licenses.includes(licId)) {
-        if (typeof showToast === 'function') showToast('Kamu sudah memiliki lisensi/dokumen ini!', 'info');
-        return;
-    }
-
-    // Cek kecukupan saldo
-    const cost = lic.cost || 0;
-    if ((window.gameState.crest || 0) < cost) {
-        if (typeof showToast === 'function') showToast(`Saldo Crest tidak cukup! Butuh ${cost.toLocaleString()} C`, 'error');
-        return;
-    }
-
-    // Potong Saldo & Tambahkan ke Lisensi Legal Warga
-    window.gameState.crest -= cost;
-    window.gameState.user.legal.licenses.push(licId);
-
-    if (typeof window.saveState === 'function') window.saveState();
-    if (typeof playAudioSfx === 'function') playAudioSfx('cash');
-    if (typeof showToast === 'function') showToast(`Berhasil menerbitkan ${lic.name}!`, 'success');
-}
-    
     promptAddAdmin() {
         const targetNik = prompt("Masukkan NIK / Telegram ID Warga yang mau dijadikan Admin:");
         if (!targetNik) return;
