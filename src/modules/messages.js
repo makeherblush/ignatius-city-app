@@ -3,15 +3,15 @@
 // ==========================================
 
 const TelegramUserBridge = {
-    // ⚠️ GANTI DENGAN URL BACKEND RAILWAY KAMU
-    RAILWAY_API_URL: 'https://nama-app-lu.up.railway.app',
+    // Membaca variabel API URL dari window.APP_CONFIG atau lokasi origin
+    getApiUrl() {
+        return window.APP_CONFIG?.API_URL || window.location.origin;
+    },
 
-    // Ambil identitas NIK pengguna aktif
     getRealUser() {
         const identity = window.gameState?.user?.identity || {};
         let myNik = identity.nik || 'TG-320199201';
 
-        // Jika dibuka dari Telegram Mini App, ambil NIK berbasis Telegram ID
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe?.user) {
             const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
             myNik = `TG-${tgUser.id}`;
@@ -35,7 +35,6 @@ const MessagingService = {
         return 'conv_' + [String(nikA).trim(), String(nikB).trim()].sort().join('_');
     },
 
-    // KIRIM PESAN DENGAN NIK KE SERVER
     async sendMessage({ senderNik, senderName, recipientNik, text, type = 'text', payload = null }) {
         if (!window.gameState.chats) window.gameState.chats = { conversations: {}, contacts: [] };
         
@@ -53,7 +52,8 @@ const MessagingService = {
         }
 
         try {
-            const response = await fetch(`${TelegramUserBridge.RAILWAY_API_URL}/api/send-message`, {
+            const baseUrl = TelegramUserBridge.getApiUrl();
+            const response = await fetch(`${baseUrl}/api/send-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -76,7 +76,7 @@ const MessagingService = {
             console.warn('[Sync Error]: Offline fallback:', err);
             
             const offlineMsg = {
-                id: 'msg_off_' + Date.now(),
+                id: `msg_off_${Date.now()}`,
                 conversationId: convId,
                 senderNik: senderNik,
                 recipientNik: recipientNik,
@@ -88,7 +88,6 @@ const MessagingService = {
         }
     },
 
-    // POLLING PESAN TEPAT SINKRON BERBASIS NIK TIAP 3 DETIK
     startPolling() {
         if (this.pollingTimer) clearInterval(this.pollingTimer);
 
@@ -97,7 +96,8 @@ const MessagingService = {
             if (!me || !me.nik) return;
 
             try {
-                const response = await fetch(`${TelegramUserBridge.RAILWAY_API_URL}/api/messages/${me.nik}?since=${this.lastSyncTimestamp}`);
+                const baseUrl = TelegramUserBridge.getApiUrl();
+                const response = await fetch(`${baseUrl}/api/messages/${me.nik}?since=${this.lastSyncTimestamp}`);
                 const data = await response.json();
 
                 if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
@@ -184,11 +184,10 @@ const MessagesModule = {
         MessagingService.startPolling();
     },
 
-    // TAMBAH KONTAK LANGSUNG PAKAI NIK
     addContactPrompt() {
         this.initChats();
         const me = TelegramUserBridge.getRealUser();
-        const targetNik = prompt("Masukkan NIK Warga Target (contoh: 320199201 atau TG-81920391):");
+        const targetNik = prompt("Masukkan NIK Warga Target:");
         if (!targetNik || !targetNik.trim()) return;
 
         const cleanNik = targetNik.trim();
@@ -220,7 +219,6 @@ const MessagesModule = {
         this.openChatRoom(convId);
     },
 
-    // HAPUS KONTAK & PERCAKAPAN
     deleteContact(nik) {
         this.initChats();
         const confirmDelete = confirm(`Hapus kontak NIK (${nik}) beserta seluruh chat-nya?`);
@@ -326,7 +324,6 @@ const MessagesModule = {
         const chats = window.gameState.chats;
         const contacts = chats.contacts || [];
 
-        // 1. RUANG CHAT AKTIF
         if (activeConvId) {
             const conv = chats.conversations[activeConvId] || { messages: [] };
             let targetNik = conv.participants ? conv.participants.find(p => p !== me.nik) : null;
@@ -409,7 +406,6 @@ const MessagesModule = {
             `;
         }
 
-        // 2. DAFTAR KONTAK
         let contactsHtml = '';
         const filteredList = contacts.filter(c => 
             !this.searchQuery || 
