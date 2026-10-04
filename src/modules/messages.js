@@ -1,13 +1,12 @@
 // ==========================================
-// ENGINE PERPESANAN REAL TELEGRAM SYNC V4 (SAFE RAILWAY BACKEND)
+// ENGINE PERPESANAN REAL TELEGRAM SYNC V5 (MESSAGES.JS)
 // ==========================================
 
 // --- 1. TELEGRAM REAL USER CONNECTOR ---
 const TelegramUserBridge = {
-    // Ganti dengan URL domain backend Railway kamu
+    // URL Backend Railway kamu
     RAILWAY_BACKEND_URL: 'https://nama-app-lu.up.railway.app/api/send-telegram', 
 
-    // Mengambil data pengguna Telegram REAL yang sedang membuka Mini App
     getRealUser() {
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe?.user) {
             const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
@@ -24,7 +23,7 @@ const TelegramUserBridge = {
             };
         }
 
-        // Fallback untuk mode Testing Browser tanpa Telegram WebApp
+        // Fallback testing lokal browser
         return {
             userId: 'usr_me_real',
             nik: 'TG-90128',
@@ -36,7 +35,7 @@ const TelegramUserBridge = {
     }
 };
 
-// --- 2. USER DIRECTORY REALTIME SYNC ---
+// --- 2. USER DIRECTORY & CONTACT MANAGEMENT ---
 const UserDirectoryModule = {
     getUsers() {
         if (!window.virtualUsers || !Array.isArray(window.virtualUsers)) {
@@ -48,37 +47,17 @@ const UserDirectoryModule = {
     findUser(query) {
         if (!query) return null;
         let q = query.trim().toLowerCase();
-        if (!q.startsWith('@') && !q.startsWith('TG-') && isNaN(q)) {
-            q = '@' + q;
-        }
-
         const users = this.getUsers();
         
-        let found = users.find(u => 
+        return users.find(u => 
             u.telegramId.toLowerCase() === q || 
             u.nik.toLowerCase() === q || 
             u.userId.toLowerCase() === q
-        );
-
-        if (found) return found;
-
-        const cleanId = q.replace('@', '').replace('TG-', '');
-        if (!isNaN(cleanId) && cleanId.length >= 5) {
-            return {
-                userId: String(cleanId),
-                nik: `TG-${cleanId}`,
-                telegramId: `@user_${cleanId}`,
-                name: `Warga Telegram (${cleanId})`,
-                avatar: `https://ui-avatars.com/api/?name=${cleanId}&background=0284c7&color=fff`,
-                isRealTelegram: true
-            };
-        }
-
-        return null;
+        ) || null;
     }
 };
 
-// --- 3. REALTIME MESSAGING SERVICE & BACKEND RELAY ---
+// --- 3. MESSAGING SERVICE & RAILWAY RELAY ---
 const MessagingService = {
     getConversationId(myId, targetId) {
         return 'conv_' + [String(myId), String(targetId)].sort().join('_');
@@ -87,8 +66,9 @@ const MessagingService = {
     async sendMessage({ sender, recipient, text, type = 'text', payload = null }) {
         if (!window.gameState.chats) window.gameState.chats = { conversations: {}, contacts: [] };
         
-        const convId = this.getConversationId(sender.userId, recipient.userId);
-        const msgId = 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        const activeConvId = window.gameState.chats.activeConvId;
+        const convId = activeConvId || this.getConversationId(sender.userId, recipient.userId);
+        const msgId = 'msg_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
 
         const message = {
             id: msgId,
@@ -115,36 +95,44 @@ const MessagingService = {
             };
         }
 
+        // Push langsung ke memori chat aktif
         chats.conversations[convId].messages.push(message);
         chats.conversations[convId].lastMessageAt = Date.now();
 
         if (typeof window.saveState === 'function') window.saveState();
 
-        // Meneruskan permintaan ke backend Railway tanpa memegang token di frontend
+        // Kirim log ke backend Railway
         this.dispatchToRailwayBackend(sender, recipient, text);
 
         return message;
     },
 
-    // Mengirim payload ke Server Railway milikmu
     async dispatchToRailwayBackend(sender, recipient, text) {
         try {
-            const recipientTgId = recipient.userId || recipient.nik?.replace('TG-', '');
-
-            if (recipientTgId && !isNaN(recipientTgId)) {
-                await fetch(TelegramUserBridge.RAILWAY_BACKEND_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        recipientTgId: recipientTgId,
-                        senderName: sender.name,
-                        senderTag: sender.telegramId,
-                        text: text
-                    })
-                });
+            // Ambil ID Angka Telegram murni
+            let cleanTgId = recipient.userId;
+            if (recipient.nik && recipient.nik.startsWith('TG-')) {
+                cleanTgId = recipient.nik.replace('TG-', '');
             }
+
+            // Telegram API hanya bisa kirim ke ID angka murni
+            if (!cleanTgId || isNaN(cleanTgId)) {
+                console.warn('[TelegramBridge]: Pengiriman bot dilewati karena sasaran menggunakan @username, bukan ID Angka Telegram.');
+                return;
+            }
+
+            await fetch(TelegramUserBridge.RAILWAY_BACKEND_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    recipientTgId: cleanTgId,
+                    senderName: sender.name,
+                    senderTag: sender.telegramId,
+                    text: text
+                })
+            });
         } catch (err) {
-            console.warn('[Railway Relay Error]: Gagal mengirim pesan ke backend:', err);
+            console.warn('[Railway Relay Error]: Gagal menghubungkan ke backend Railway:', err);
         }
     }
 };
@@ -183,35 +171,30 @@ const MessagesModule = {
         }
     },
 
+    // FITUR TAMBAH KONTAK
     addContactPrompt() {
         this.initChats();
         const me = TelegramUserBridge.getRealUser();
-        const query = prompt("Masukkan @username Telegram atau ID Telegram Warga Real (contoh: @jex_user atau 12345678):");
+        const query = prompt("Masukkan ID Angka Telegram (Misal: 12345678) atau Username (@username):");
         if (!query || !query.trim()) return;
 
         const cleanQuery = query.trim();
-        const foundUser = UserDirectoryModule.findUser(cleanQuery);
+        const isNumeric = !isNaN(cleanQuery) || !isNaN(cleanQuery.replace('TG-', ''));
+        const cleanId = cleanQuery.replace('TG-', '').replace('@', '');
 
-        let targetUser = foundUser;
-
-        if (!targetUser) {
-            const isUsername = cleanQuery.startsWith('@');
-            const cleanId = cleanQuery.replace('@', '').replace('TG-', '');
-
-            targetUser = {
-                userId: isNaN(cleanId) ? 'usr_tg_' + cleanId : cleanId,
-                nik: `TG-${cleanId}`,
-                telegramId: isUsername ? cleanQuery : `@user_${cleanId}`,
-                name: `Warga (${cleanQuery})`,
-                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanQuery)}&background=0284c7&color=fff`,
-                isRealTelegram: true
-            };
-        }
-
-        if (targetUser.userId === me.userId) {
-            if (typeof showToast === 'function') showToast('Kamu tidak bisa menambahkan ID Telegram milikmu sendiri!', 'error');
+        if (String(cleanId) === String(me.userId)) {
+            if (typeof showToast === 'function') showToast('Kamu tidak bisa menambah ID kamu sendiri!', 'error');
             return;
         }
+
+        const targetUser = {
+            userId: cleanId,
+            nik: `TG-${cleanId}`,
+            telegramId: isNumeric ? `ID: ${cleanId}` : `@${cleanId}`,
+            name: isNumeric ? `Warga (${cleanId})` : cleanQuery,
+            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanQuery)}&background=0284c7&color=fff`,
+            isRealTelegram: true
+        };
 
         const existingIndex = window.gameState.chats.contacts.findIndex(c => c.userId === targetUser.userId);
         if (existingIndex === -1) {
@@ -222,9 +205,38 @@ const MessagesModule = {
 
         const convId = MessagingService.getConversationId(me.userId, targetUser.userId);
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Kontak Telegram ${targetUser.name} Terdeteksi & Ditambahkan!`, 'success');
+        if (typeof showToast === 'function') showToast(`Kontak ${targetUser.name} Berhasil Ditambahkan!`, 'success');
         
         this.openChatRoom(convId);
+    },
+
+    // FITUR HAPUS KONTAK & CHAT
+    deleteContact(userId) {
+        this.initChats();
+        const confirmDelete = confirm("Apakah kamu yakin ingin menghapus kontak ini dan seluruh riwayat chat-nya?");
+        if (!confirmDelete) return;
+
+        const me = TelegramUserBridge.getRealUser();
+        const chats = window.gameState.chats;
+
+        // 1. Hapus dari daftar kontak
+        chats.contacts = chats.contacts.filter(c => c.userId !== userId);
+
+        // 2. Hapus dari riwayat percakapan
+        const convId = MessagingService.getConversationId(me.userId, userId);
+        if (chats.conversations[convId]) {
+            delete chats.conversations[convId];
+        }
+
+        // Reset jika sedang membuka ruang chat ini
+        if (chats.activeConvId === convId) {
+            chats.activeConvId = null;
+        }
+
+        if (typeof window.saveState === 'function') window.saveState();
+        if (typeof showToast === 'function') showToast('Kontak dan pesan berhasil dihapus!', 'info');
+        
+        openApp('messages');
     },
 
     openChatRoom(convId) {
@@ -257,15 +269,12 @@ const MessagesModule = {
             targetUserId = parts.find(p => p !== me.userId) || parts[0];
         }
 
-        let targetUser = window.gameState.chats.contacts.find(c => c.userId === targetUserId) || UserDirectoryModule.findUser(targetUserId);
-        if (!targetUser) {
-            targetUser = {
-                userId: targetUserId,
-                nik: `TG-${targetUserId}`,
-                telegramId: `@user_${targetUserId}`,
-                name: `Warga (${targetUserId})`
-            };
-        }
+        let targetUser = window.gameState.chats.contacts.find(c => c.userId === targetUserId) || {
+            userId: targetUserId,
+            nik: `TG-${targetUserId}`,
+            telegramId: `@user_${targetUserId}`,
+            name: `Warga (${targetUserId})`
+        };
 
         await MessagingService.sendMessage({
             sender: me,
@@ -276,7 +285,7 @@ const MessagesModule = {
 
         input.value = '';
         if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
-        if (typeof openApp === 'function') openApp('messages');
+        openApp('messages');
     },
 
     shareCurrentLocation() {
@@ -303,7 +312,7 @@ const MessagesModule = {
         });
 
         if (typeof showToast === 'function') showToast('Lokasi GPS berhasil dikirim!', 'success');
-        if (typeof openApp === 'function') openApp('messages');
+        openApp('messages');
     },
 
     renderMessagesAppUI() {
@@ -313,14 +322,16 @@ const MessagesModule = {
         const chats = window.gameState.chats;
         const contacts = chats.contacts || [];
 
+        // 1. RUANG CHAT AKTIF
         if (activeConvId) {
             const conv = chats.conversations[activeConvId] || { messages: [] };
-            const targetUserId = conv.participants ? conv.participants.find(p => p !== me.userId) : activeConvId.replace('conv_', '').replace(me.userId, '').replace('_', '');
-            
-            let targetUser = contacts.find(c => c.userId === targetUserId) || UserDirectoryModule.findUser(targetUserId);
-            if (!targetUser) {
-                targetUser = { name: `Warga (${targetUserId})`, userId: targetUserId, avatar: 'https://ui-avatars.com/api/?name=Warga', telegramId: `@user_${targetUserId}` };
+            let targetUserId = conv.participants ? conv.participants.find(p => p !== me.userId) : null;
+            if (!targetUserId) {
+                const parts = activeConvId.replace('conv_', '').split('_');
+                targetUserId = parts.find(p => p !== me.userId) || parts[0];
             }
+            
+            let targetUser = contacts.find(c => c.userId === targetUserId) || { name: `Warga (${targetUserId})`, userId: targetUserId, avatar: 'https://ui-avatars.com/api/?name=Warga', telegramId: `TG-${targetUserId}` };
 
             let msgsHtml = '';
             conv.messages.forEach(m => {
@@ -356,6 +367,7 @@ const MessagesModule = {
 
             return `
                 <div class="flex flex-col h-full justify-between space-y-3 pt-1">
+                    <!-- HEADER CHAT DENGAN TOMBOL HAPUS KONTAK -->
                     <div class="glass-ios p-3 rounded-2xl border border-emerald-500/30 flex items-center justify-between shrink-0 shadow-lg">
                         <div class="flex items-center gap-2.5">
                             <button onclick="MessagesModule.closeChatRoom()" class="text-xs text-sky-400 font-bold flex items-center gap-1 pr-1 active:scale-95">
@@ -368,18 +380,25 @@ const MessagesModule = {
                             </div>
                         </div>
 
-                        <button onclick="MessagesModule.shareCurrentLocation()" class="p-2 bg-sky-500/20 text-sky-300 hover:bg-sky-500 hover:text-white text-xs rounded-xl transition-all" title="Bagikan Lokasi GPS">
-                            <i class="fa-solid fa-location-crosshairs"></i>
-                        </button>
+                        <div class="flex items-center gap-1">
+                            <button onclick="MessagesModule.shareCurrentLocation()" class="p-2 bg-sky-500/20 text-sky-300 hover:bg-sky-500 hover:text-white text-xs rounded-xl transition-all" title="Bagikan Lokasi GPS">
+                                <i class="fa-solid fa-location-crosshairs"></i>
+                            </button>
+                            <button onclick="MessagesModule.deleteContact('${targetUser.userId}')" class="p-2 bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white text-xs rounded-xl transition-all" title="Hapus Kontak & Chat">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </div>
 
+                    <!-- AREA RUANG PESAN -->
                     <div class="flex-1 overflow-y-auto space-y-2.5 p-1 max-h-[280px]">
-                        ${msgsHtml || '<p class="text-[10px] text-slate-500 text-center py-8">Belum ada obrolan. Ketik pesan untuk mengirim ke Telegram!</p>'}
+                        ${msgsHtml || '<p class="text-[10px] text-slate-500 text-center py-8">Belum ada obrolan. Ketik pesan di bawah!</p>'}
                     </div>
 
+                    <!-- INPUT PESAN -->
                     <div class="flex gap-2 pt-1 border-t border-white/10 shrink-0">
                         <input type="text" id="chat-input-msg" onkeydown="if(event.key==='Enter') MessagesModule.sendMessage()" 
-                               placeholder="Ketik pesan Telegram..." 
+                               placeholder="Ketik pesan..." 
                                class="flex-1 px-3.5 py-2.5 bg-slate-900 border border-white/15 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 shadow-inner">
                         <button onclick="MessagesModule.sendMessage()" class="px-3.5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg flex items-center justify-center transition-all active:scale-95">
                             <i class="fa-solid fa-paper-plane"></i>
@@ -389,6 +408,7 @@ const MessagesModule = {
             `;
         }
 
+        // 2. DAFTAR KONTAK & CHAT
         let contactsHtml = '';
         const filteredList = contacts.filter(c => 
             !this.searchQuery || 
@@ -399,9 +419,9 @@ const MessagesModule = {
         if (filteredList.length === 0) {
             contactsHtml = `
                 <div class="glass-card p-6 rounded-2xl text-center space-y-2">
-                    <p class="text-[10px] text-slate-400">Belum ada teman Telegram terhubung.</p>
+                    <p class="text-[10px] text-slate-400">Belum ada kontak terhubung.</p>
                     <button onclick="MessagesModule.addContactPrompt()" class="px-3 py-1.5 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-md">
-                        + Tambah @username Telegram
+                        + Tambah Kontak Telegram
                     </button>
                 </div>
             `;
@@ -411,12 +431,12 @@ const MessagesModule = {
                 const conv = chats.conversations[convId];
                 const lastMsgs = conv ? conv.messages : [];
                 const lastMsgObj = lastMsgs.length > 0 ? lastMsgs[lastMsgs.length - 1] : null;
-                const lastMsgText = lastMsgObj ? lastMsgObj.text : 'Klik untuk buka percakapan Telegram';
+                const lastMsgText = lastMsgObj ? lastMsgObj.text : 'Klik untuk buka percakapan';
                 const timeStr = lastMsgObj ? new Date(lastMsgObj.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
 
                 contactsHtml += `
-                    <div onclick="MessagesModule.openChatRoom('${convId}')" class="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-emerald-500/50 transition-all active:scale-98">
-                        <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="glass-card p-3 rounded-2xl flex items-center justify-between hover:border-emerald-500/50 transition-all">
+                        <div onclick="MessagesModule.openChatRoom('${convId}')" class="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer">
                             <div class="relative shrink-0">
                                 <img src="${c.avatar}" class="w-10 h-10 rounded-2xl object-cover border border-emerald-500/30" alt="PP">
                                 <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-sky-400 border-2 border-slate-900 rounded-full"></div>
@@ -426,10 +446,13 @@ const MessagesModule = {
                                     <h5 class="text-xs font-bold text-white">${this.escapeHTML(c.name)}</h5>
                                     <span class="text-[8px] text-slate-500 font-mono">${timeStr}</span>
                                 </div>
-                                <p class="text-[10px] text-slate-400 truncate max-w-[180px]">${this.escapeHTML(lastMsgText)}</p>
+                                <p class="text-[10px] text-slate-400 truncate max-w-[170px]">${this.escapeHTML(lastMsgText)}</p>
                             </div>
                         </div>
-                        <i class="fa-solid fa-chevron-right text-xs text-slate-500 shrink-0"></i>
+
+                        <button onclick="MessagesModule.deleteContact('${c.userId}')" class="p-2 text-slate-500 hover:text-rose-400 text-xs transition-all" title="Hapus Kontak">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
                     </div>
                 `;
             });
@@ -441,24 +464,24 @@ const MessagesModule = {
                     <div class="flex items-center justify-between">
                         <div>
                             <span class="text-[8px] text-sky-400 font-mono uppercase font-bold block flex items-center gap-1">
-                                <i class="fa-brands fa-telegram text-sky-400"></i> TELEGRAM REALTIME CONNECTED
+                                <i class="fa-brands fa-telegram text-sky-400"></i> TELEGRAM MESSAGING
                             </span>
                             <h4 class="text-xs font-bold text-white">${this.escapeHTML(me.name)} (${this.escapeHTML(me.telegramId)})</h4>
                         </div>
                         <button onclick="MessagesModule.addContactPrompt()" class="px-2.5 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-[10px] rounded-xl shadow-md flex items-center gap-1 transition-all active:scale-95">
-                            <i class="fa-solid fa-user-plus text-[9px]"></i> + Telegram ID
+                            <i class="fa-solid fa-user-plus text-[9px]"></i> + Tambah
                         </button>
                     </div>
                 </div>
 
                 <div class="relative">
                     <input type="text" value="${this.searchQuery}" oninput="MessagesModule.searchQuery = this.value; if(typeof openApp==='function') openApp('messages');" 
-                           placeholder="🔍 Cari @username atau ID Telegram..." 
+                           placeholder="🔍 Cari kontak atau obrolan..." 
                            class="w-full px-4 py-2 bg-slate-900/90 border border-white/15 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 font-medium">
                 </div>
 
                 <div class="space-y-2">
-                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">💬 Kontak & Obrolan Telegram</h4>
+                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">💬 Daftar Kontak & Obrolan</h4>
                     <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
                         ${contactsHtml}
                     </div>
