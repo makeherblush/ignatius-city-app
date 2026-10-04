@@ -1,11 +1,11 @@
 // ==========================================
-// ENGINE PERPESANAN REAL TELEGRAM SYNC V4 (MESSAGES.JS)
+// ENGINE PERPESANAN REAL TELEGRAM SYNC V4 (SAFE RAILWAY BACKEND)
 // ==========================================
 
 // --- 1. TELEGRAM REAL USER CONNECTOR ---
 const TelegramUserBridge = {
-    // URL Backend Webhook / Supabase / Bot API Bridge milikmu (Opsional jika pakai backend)
-    SYNC_API_ENDPOINT: 'https://api.yourserver.com/telegram-bridge', 
+    // Ganti dengan URL domain backend Railway kamu
+    RAILWAY_BACKEND_URL: 'https://nama-app-lu.up.railway.app/api/send-telegram', 
 
     // Mengambil data pengguna Telegram REAL yang sedang membuka Mini App
     getRealUser() {
@@ -45,17 +45,15 @@ const UserDirectoryModule = {
         return window.virtualUsers;
     },
 
-    // Mencari pengguna real berdasarkan @username Telegram atau ID Telegram
     findUser(query) {
         if (!query) return null;
         let q = query.trim().toLowerCase();
         if (!q.startsWith('@') && !q.startsWith('TG-') && isNaN(q)) {
-            q = '@' + q; // Auto format ke @username jika diinput tanpa @
+            q = '@' + q;
         }
 
         const users = this.getUsers();
         
-        // Cek database lokal kontak tersimpan
         let found = users.find(u => 
             u.telegramId.toLowerCase() === q || 
             u.nik.toLowerCase() === q || 
@@ -64,7 +62,6 @@ const UserDirectoryModule = {
 
         if (found) return found;
 
-        // Cek jika yang dicari adalah ID Telegram Angka
         const cleanId = q.replace('@', '').replace('TG-', '');
         if (!isNaN(cleanId) && cleanId.length >= 5) {
             return {
@@ -81,7 +78,7 @@ const UserDirectoryModule = {
     }
 };
 
-// --- 3. REALTIME MESSAGING SERVICE & TELEGRAM BRIDGE ---
+// --- 3. REALTIME MESSAGING SERVICE & BACKEND RELAY ---
 const MessagingService = {
     getConversationId(myId, targetId) {
         return 'conv_' + [String(myId), String(targetId)].sort().join('_');
@@ -123,36 +120,31 @@ const MessagingService = {
 
         if (typeof window.saveState === 'function') window.saveState();
 
-        // CHAT BRIDGE: Kirim pesan ke API Telegram / Server Realtime jika tersedia
-        this.dispatchToRealTelegramBridge(sender, recipient, text);
+        // Meneruskan permintaan ke backend Railway tanpa memegang token di frontend
+        this.dispatchToRailwayBackend(sender, recipient, text);
 
         return message;
     },
 
-    // Pengiriman Pesan Nyata ke Telegram Receiver (via Bot Webhook / Cloud API)
-    async dispatchToRealTelegramBridge(sender, recipient, text) {
+    // Mengirim payload ke Server Railway milikmu
+    async dispatchToRailwayBackend(sender, recipient, text) {
         try {
-            // Cek jika dikirim ke Telegram ID Real (berupa ID angka)
             const recipientTgId = recipient.userId || recipient.nik?.replace('TG-', '');
 
             if (recipientTgId && !isNaN(recipientTgId)) {
-                console.log(`[TelegramBridge]: Dispatching message to Telegram User ID: ${recipientTgId}...`);
-
-                // Jika kamu menyambungkan Bot Telegram API milikmu
-                if (window.TELEGRAM_BOT_TOKEN) {
-                    await fetch(`https://api.telegram.org/bot${window.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: recipientTgId,
-                            text: `💬 *Pesan Baru dari ${sender.name} (${sender.telegramId})*:\n\n"${text}"\n\n_Buka Mini App untuk membalas._`,
-                            parse_mode: 'Markdown'
-                        })
-                    });
-                }
+                await fetch(TelegramUserBridge.RAILWAY_BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        recipientTgId: recipientTgId,
+                        senderName: sender.name,
+                        senderTag: sender.telegramId,
+                        text: text
+                    })
+                });
             }
         } catch (err) {
-            console.warn('[TelegramBridge Error]: Gagal meneruskan ke Telegram Bot API:', err);
+            console.warn('[Railway Relay Error]: Gagal mengirim pesan ke backend:', err);
         }
     }
 };
@@ -191,7 +183,6 @@ const MessagesModule = {
         }
     },
 
-    // TAMBAH KONTAK REAL TELEGRAM
     addContactPrompt() {
         this.initChats();
         const me = TelegramUserBridge.getRealUser();
@@ -204,7 +195,6 @@ const MessagesModule = {
         let targetUser = foundUser;
 
         if (!targetUser) {
-            // Buat entitas kontak real berdasarkan input username / Telegram ID
             const isUsername = cleanQuery.startsWith('@');
             const cleanId = cleanQuery.replace('@', '').replace('TG-', '');
 
@@ -223,7 +213,6 @@ const MessagesModule = {
             return;
         }
 
-        // Simpan Kontak
         const existingIndex = window.gameState.chats.contacts.findIndex(c => c.userId === targetUser.userId);
         if (existingIndex === -1) {
             window.gameState.chats.contacts.push(targetUser);
@@ -250,7 +239,6 @@ const MessagesModule = {
         if (typeof openApp === 'function') openApp('messages');
     },
 
-    // KIRIM PESAN SINKRON
     async sendMessage() {
         this.initChats();
         const input = document.getElementById('chat-input-msg');
@@ -291,7 +279,6 @@ const MessagesModule = {
         if (typeof openApp === 'function') openApp('messages');
     },
 
-    // BAGIKAN LOKASI REALTIME GPS
     shareCurrentLocation() {
         this.initChats();
         const activeConvId = window.gameState.chats.activeConvId;
@@ -319,7 +306,6 @@ const MessagesModule = {
         if (typeof openApp === 'function') openApp('messages');
     },
 
-    // RENDER UI APP MESSAGES
     renderMessagesAppUI() {
         this.initChats();
         const me = TelegramUserBridge.getRealUser();
@@ -327,7 +313,6 @@ const MessagesModule = {
         const chats = window.gameState.chats;
         const contacts = chats.contacts || [];
 
-        // 1. RUANG CHAT AKTIF (CONVERSATION VIEW)
         if (activeConvId) {
             const conv = chats.conversations[activeConvId] || { messages: [] };
             const targetUserId = conv.participants ? conv.participants.find(p => p !== me.userId) : activeConvId.replace('conv_', '').replace(me.userId, '').replace('_', '');
@@ -371,7 +356,6 @@ const MessagesModule = {
 
             return `
                 <div class="flex flex-col h-full justify-between space-y-3 pt-1">
-                    <!-- HEADER CHAT -->
                     <div class="glass-ios p-3 rounded-2xl border border-emerald-500/30 flex items-center justify-between shrink-0 shadow-lg">
                         <div class="flex items-center gap-2.5">
                             <button onclick="MessagesModule.closeChatRoom()" class="text-xs text-sky-400 font-bold flex items-center gap-1 pr-1 active:scale-95">
@@ -389,12 +373,10 @@ const MessagesModule = {
                         </button>
                     </div>
 
-                    <!-- AREA PESAN -->
                     <div class="flex-1 overflow-y-auto space-y-2.5 p-1 max-h-[280px]">
                         ${msgsHtml || '<p class="text-[10px] text-slate-500 text-center py-8">Belum ada obrolan. Ketik pesan untuk mengirim ke Telegram!</p>'}
                     </div>
 
-                    <!-- INPUT CHAT BAR -->
                     <div class="flex gap-2 pt-1 border-t border-white/10 shrink-0">
                         <input type="text" id="chat-input-msg" onkeydown="if(event.key==='Enter') MessagesModule.sendMessage()" 
                                placeholder="Ketik pesan Telegram..." 
@@ -407,7 +389,6 @@ const MessagesModule = {
             `;
         }
 
-        // 2. DAFTAR KONTAK TELEGRAM
         let contactsHtml = '';
         const filteredList = contacts.filter(c => 
             !this.searchQuery || 
@@ -456,7 +437,6 @@ const MessagesModule = {
 
         return `
             <div class="space-y-4">
-                <!-- HERO HEADER TELEGRAM SYNC -->
                 <div class="glass-ios p-4 rounded-3xl border border-sky-500/40 space-y-2 bg-gradient-to-br from-slate-900 via-slate-900 to-sky-950/60 shadow-xl">
                     <div class="flex items-center justify-between">
                         <div>
@@ -471,14 +451,12 @@ const MessagesModule = {
                     </div>
                 </div>
 
-                <!-- SEARCH BAR -->
                 <div class="relative">
                     <input type="text" value="${this.searchQuery}" oninput="MessagesModule.searchQuery = this.value; if(typeof openApp==='function') openApp('messages');" 
                            placeholder="🔍 Cari @username atau ID Telegram..." 
                            class="w-full px-4 py-2 bg-slate-900/90 border border-white/15 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 font-medium">
                 </div>
 
-                <!-- DAFTAR CHAT -->
                 <div class="space-y-2">
                     <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">💬 Kontak & Obrolan Telegram</h4>
                     <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
