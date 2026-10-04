@@ -1,6 +1,6 @@
 // ==========================================
 // IGNATIUS CITY UNIFIED ONLINE OS ENGINE
-// FILE: city_online_os_unified.js
+// FILE: jobs.js / city_online_os_unified.js
 // ==========================================
 
 (function () {
@@ -355,9 +355,9 @@
             'cmp_tech': { name: 'Ignatius Tech & Engineering', icon: 'fa-code', sector: 'Teknologi & IT' },
             'cmp_gov': { name: 'Pemerintah Kota Central', icon: 'fa-landmark', sector: 'Layanan Publik' },
             'cmp_rsud': { name: 'RSUD Medika Utama', icon: 'fa-hospital', sector: 'Kesehatan' },
-            'cmp_polres': { name: 'Polres Patrolex Central', icon: 'fa-shield-halved', sector: 'Keamanan Hukum' },
+            'cmp_polres': { name: 'Kepolisian Patroli Kota', icon: 'fa-shield-halved', sector: 'Keamanan Hukum' },
             'cmp_bank': { name: 'Bank Central Ignatius', icon: 'fa-building-columns', sector: 'Keuangan' },
-            'cmp_bistro': { name: 'Ignatius Bistro & Cafe', icon: 'fa-mug-hot', sector: 'Kuliner' },
+            'cmp_bistro': { name: 'Igna Bistro & Cafe', icon: 'fa-mug-hot', sector: 'Kuliner' },
             'cmp_media': { name: 'Ignatius News & Media', icon: 'fa-newspaper', sector: 'Media' },
             'cmp_freelance': { name: 'Bursa Gig & Freelance Kota', icon: 'fa-briefcase', sector: 'Jasa Umum' }
         },
@@ -502,8 +502,8 @@
         }
     };
 
-    // B. IGNA SHOPEE MARKETPLACE
-    const ShopeeApp = {
+    // B. IGNA MARKET (PENGGANTI IGNA SHOPEE)
+    const MarketApp = {
         render() {
             initUnifiedCityState();
             const me = Utils.getUserIdentity();
@@ -520,14 +520,14 @@
                             <h4 class="text-xs font-bold text-amber-300"><i class="fa-solid fa-store mr-1"></i> ${Utils.escapeHTML(myStore.storeName)}</h4>
                             <span class="text-xs font-mono font-bold text-emerald-400">+${(myStore.income || 0).toLocaleString()} C</span>
                         </div>
-                        <button onclick="CityOS.Shopee.addProductPrompt()" class="mt-2 w-full py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl">+ Tambah Produk</button>
+                        <button onclick="CityOS.Market.addProductPrompt()" class="mt-2 w-full py-1.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl">+ Tambah Produk</button>
                     </div>
                 `;
             } else {
                 storeHeader = `
                     <div class="glass-card p-3 rounded-2xl flex justify-between items-center mb-3 border border-amber-500/30">
                         <span class="text-xs font-bold text-white">Buka Toko Sendiri</span>
-                        <button onclick="CityOS.Shopee.registerStorePrompt()" class="px-3 py-1.5 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl">Daftar Toko</button>
+                        <button onclick="CityOS.Market.registerStorePrompt()" class="px-3 py-1.5 bg-amber-500 text-slate-950 text-xs font-bold rounded-xl">Daftar Toko</button>
                     </div>
                 `;
             }
@@ -538,11 +538,11 @@
                         <h6 class="font-bold text-white">${Utils.escapeHTML(p.name)}</h6>
                         <span class="text-emerald-400 font-mono text-[10px]">${p.price.toLocaleString()} C</span>
                     </div>
-                    <button onclick="CityOS.Shopee.buy('${p.productId}')" class="px-3 py-1 bg-emerald-600 text-white font-bold text-[10px] rounded-lg">Beli</button>
+                    <button onclick="CityOS.Market.buy('${p.productId}')" class="px-3 py-1 bg-emerald-600 text-white font-bold text-[10px] rounded-lg">Beli</button>
                 </div>
             `).join('');
 
-            return `<div>${storeHeader}<h4 class="text-xs font-bold text-sky-400 uppercase mb-2">Marketplace Kota</h4>${productsHtml}</div>`;
+            return `<div>${storeHeader}<h4 class="text-xs font-bold text-sky-400 uppercase mb-2">Igna Market Kota</h4>${productsHtml}</div>`;
         },
 
         registerStorePrompt() {
@@ -625,8 +625,8 @@
         }
     };
 
-    // C. HALODOC MEDIKA (DUAL-SIDED)
-    const HalodocApp = {
+    // C. IGNA MEDIKA (PENGGANTI HALODOC)
+    const MedikaApp = {
         render() {
             const isDoctor = JobDatabase.hasPermission('medical.treat');
             if (isDoctor) {
@@ -660,16 +660,16 @@
             return `
                 <div class="space-y-4">
                     <div class="glass-ios p-4 rounded-3xl border border-rose-500/40 space-y-2 bg-gradient-to-br from-slate-900 to-rose-950/40">
-                        <h4 class="text-xs font-bold text-rose-300 uppercase"><i class="fa-solid fa-hospital mr-1.5"></i> HALODOC MEDIKA CENTRAL</h4>
+                        <h4 class="text-xs font-bold text-rose-300 uppercase"><i class="fa-solid fa-hospital mr-1.5"></i> IGNA MEDIKA CENTRAL</h4>
                         <p class="text-[10px] text-slate-300">Layanan panggilan medis darurat & konsultasi dokter resep.</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2">
-                        <button onclick="CityOS.Halodoc.requestAmbulance()" class="p-3.5 glass-card rounded-2xl flex flex-col items-center text-center space-y-1 hover:border-rose-400/50">
+                        <button onclick="CityOS.Medika.requestAmbulance()" class="p-3.5 glass-card rounded-2xl flex flex-col items-center text-center space-y-1 hover:border-rose-400/50">
                             <i class="fa-solid fa-truck-medical text-rose-400 text-xl animate-pulse"></i>
                             <span class="text-xs font-bold text-white">911 Ambulans</span>
                         </button>
-                        <button onclick="CityOS.Halodoc.requestConsultation()" class="p-3.5 glass-card rounded-2xl flex flex-col items-center text-center space-y-1 hover:border-sky-400/50">
+                        <button onclick="CityOS.Medika.requestConsultation()" class="p-3.5 glass-card rounded-2xl flex flex-col items-center text-center space-y-1 hover:border-sky-400/50">
                             <i class="fa-solid fa-user-doctor text-sky-400 text-xl"></i>
                             <span class="text-xs font-bold text-white">Konsultasi Dokter</span>
                         </button>
@@ -680,7 +680,7 @@
 
         requestAmbulance() {
             ServiceEngine.createRequest({
-                service: 'Halodoc Medika',
+                service: 'Igna Medika',
                 type: 'AMBULANCE_911',
                 providerPermission: 'medical.treat',
                 details: 'Darurat Koma / Vitality Drop Sangat Rendah',
@@ -691,7 +691,7 @@
 
         requestConsultation() {
             ServiceEngine.createRequest({
-                service: 'Halodoc Medika',
+                service: 'Igna Medika',
                 type: 'DOCTOR_CONSULTATION',
                 providerPermission: 'medical.treat',
                 details: 'Pemeriksaan Kesehatan & Permintaan Resep Obat',
@@ -701,8 +701,8 @@
         }
     };
 
-    // D. POLICE HUB (DUAL-SIDED)
-    const PoliceApp = {
+    // D. PATROLI KOTA (PENGGANTI POLRES HUB)
+    const PatroliApp = {
         render() {
             const isPolice = JobDatabase.hasPermission('police.ticket') || JobDatabase.hasPermission('police.patrol');
             initUnifiedCityState();
@@ -719,11 +719,11 @@
                 return `
                     <div class="space-y-3">
                         <div class="glass-ios p-3 rounded-2xl border border-indigo-500/40 bg-gradient-to-br from-slate-900 to-indigo-950/50">
-                            <h4 class="text-xs font-bold text-indigo-300 uppercase"><i class="fa-solid fa-shield-halved mr-1"></i> POLRES PATROLEX HUB PETUGAS</h4>
+                            <h4 class="text-xs font-bold text-indigo-300 uppercase"><i class="fa-solid fa-shield-halved mr-1"></i> PATROLI KOTA PETUGAS</h4>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <button onclick="CityOS.Police.issueTicketPrompt()" class="p-3 glass-card rounded-xl text-center"><i class="fa-solid fa-file-invoice-dollar text-indigo-400 text-lg"></i><span class="block text-xs font-bold text-white mt-1">Terbitkan E-Tilang</span></button>
-                            <button onclick="CityOS.Police.issueDpoPrompt()" class="p-3 glass-card rounded-xl text-center"><i class="fa-solid fa-user-ninja text-rose-400 text-lg"></i><span class="block text-xs font-bold text-white mt-1">Terbitkan DPO</span></button>
+                            <button onclick="CityOS.Patroli.issueTicketPrompt()" class="p-3 glass-card rounded-xl text-center"><i class="fa-solid fa-file-invoice-dollar text-indigo-400 text-lg"></i><span class="block text-xs font-bold text-white mt-1">Terbitkan E-Tilang</span></button>
+                            <button onclick="CityOS.Patroli.issueDpoPrompt()" class="p-3 glass-card rounded-xl text-center"><i class="fa-solid fa-user-ninja text-rose-400 text-lg"></i><span class="block text-xs font-bold text-white mt-1">Terbitkan DPO</span></button>
                         </div>
                         <div class="glass-ios p-3 rounded-2xl border border-white/10 space-y-1">
                             <h5 class="text-[10px] font-bold text-indigo-300">Log E-Tilang Terbit</h5>
@@ -740,14 +740,14 @@
             let myTicketsHtml = myTickets.map(t => `
                 <div class="glass-card p-2.5 rounded-xl flex justify-between items-center text-xs mb-2 border border-rose-500/30">
                     <div><h6 class="font-bold text-white">${Utils.escapeHTML(t.violation)}</h6><span class="text-slate-400 font-mono text-[9px]">${t.fine.toLocaleString()} C</span></div>
-                    <button onclick="CityOS.Police.payTicket('${t.id}')" class="px-3 py-1 bg-rose-600 text-white font-bold text-[10px] rounded-lg">Bayar</button>
+                    <button onclick="CityOS.Patroli.payTicket('${t.id}')" class="px-3 py-1 bg-rose-600 text-white font-bold text-[10px] rounded-lg">Bayar</button>
                 </div>
             `).join('');
 
             return `
                 <div class="space-y-4">
                     <div class="glass-ios p-4 rounded-3xl border border-indigo-500/40 space-y-2 bg-gradient-to-br from-slate-900 to-indigo-950/40">
-                        <h4 class="text-xs font-bold text-indigo-300 uppercase"><i class="fa-solid fa-shield-halved mr-1"></i> POLRES PATROLEX HUB WARGA</h4>
+                        <h4 class="text-xs font-bold text-indigo-300 uppercase"><i class="fa-solid fa-shield-halved mr-1"></i> PATROLI KOTA WARGA</h4>
                         <p class="text-[10px] text-slate-300">Layanan pembayaran E-Tilang & Laporan 911 Kejahatan.</p>
                     </div>
                     <div><h5 class="text-xs font-bold text-amber-400 mb-2">E-Tilang Aktif Kamu (${myTickets.length})</h5>${myTicketsHtml || '<p class="text-[10px] text-slate-500">Tidak ada tagihan E-Tilang aktif.</p>'}</div>
@@ -856,7 +856,7 @@
         }
     };
 
-    // F. CITY GOVERNMENT (PEMKOT)
+    // F. CITY GOVERNMENT (BALAI KOTA)
     const GovApp = {
         render() {
             const isAdmin = JobDatabase.hasPermission('gov.admin');
@@ -1027,8 +1027,8 @@
         }
     };
 
-    // J. IGNA COURIER (DUAL-SIDED)
-    const CourierApp = {
+    // J. IGNA KURIR (PENGGANTI IGNA COURIER)
+    const KurirApp = {
         render() {
             const isCourier = JobDatabase.hasPermission('courier.deliver');
             if (isCourier) {
@@ -1046,10 +1046,10 @@
             return `
                 <div class="space-y-4">
                     <div class="glass-ios p-4 rounded-3xl border border-orange-500/40 space-y-2 bg-gradient-to-br from-slate-900 to-orange-950/40">
-                        <h4 class="text-xs font-bold text-orange-300 uppercase"><i class="fa-solid fa-truck-fast mr-1"></i> IGNA COURIER EXPRESS</h4>
+                        <h4 class="text-xs font-bold text-orange-300 uppercase"><i class="fa-solid fa-truck-fast mr-1"></i> IGNA KURIR EKSPRES</h4>
                         <p class="text-[10px] text-slate-300">Pengiriman barang & paket kilat antar alamat kota.</p>
                     </div>
-                    <button onclick="CityOS.Courier.sendPackagePrompt()" class="w-full py-3 bg-orange-500 text-slate-950 font-bold text-xs rounded-2xl shadow-lg">+ Kirim Paket Kilat</button>
+                    <button onclick="CityOS.Kurir.sendPackagePrompt()" class="w-full py-3 bg-orange-500 text-slate-950 font-bold text-xs rounded-2xl shadow-lg">+ Kirim Paket Kilat</button>
                 </div>
             `;
         },
@@ -1059,7 +1059,7 @@
             if (!dest) return;
 
             ServiceEngine.createRequest({
-                service: 'Igna Courier',
+                service: 'Igna Kurir',
                 type: 'PACKAGE_DELIVERY',
                 providerPermission: 'courier.deliver',
                 details: `Pengiriman Paket Kilat ke Tujuan: ${dest.trim()}`,
@@ -1069,8 +1069,8 @@
         }
     };
 
-    // K. IGNA FOOD & BISTRO (DUAL-SIDED)
-    const FoodApp = {
+    // K. IGNA BISTRO (PENGGANTI IGNA FOOD)
+    const BistroApp = {
         render() {
             const isChef = JobDatabase.hasPermission('food.prepare');
             if (isChef) {
@@ -1088,10 +1088,10 @@
             return `
                 <div class="space-y-4">
                     <div class="glass-ios p-4 rounded-3xl border border-yellow-500/40 space-y-2 bg-gradient-to-br from-slate-900 to-yellow-950/40">
-                        <h4 class="text-xs font-bold text-yellow-300 uppercase"><i class="fa-solid fa-mug-hot mr-1"></i> IGNA FOOD & KULINER BISTRO</h4>
+                        <h4 class="text-xs font-bold text-yellow-300 uppercase"><i class="fa-solid fa-mug-hot mr-1"></i> IGNA BISTRO & KULINER</h4>
                         <p class="text-[10px] text-slate-300">Pesan makanan & minuman hangat pemulih vitality.</p>
                     </div>
-                    <button onclick="CityOS.Food.orderFoodPrompt()" class="w-full py-3 bg-yellow-500 text-slate-950 font-bold text-xs rounded-2xl shadow-lg">+ Pesan Makanan Kuliner Bistro</button>
+                    <button onclick="CityOS.Bistro.orderFoodPrompt()" class="w-full py-3 bg-yellow-500 text-slate-950 font-bold text-xs rounded-2xl shadow-lg">+ Pesan Makanan Kuliner Bistro</button>
                 </div>
             `;
         },
@@ -1101,7 +1101,7 @@
             if (!foodName) return;
 
             ServiceEngine.createRequest({
-                service: 'Igna Food',
+                service: 'Igna Bistro',
                 type: 'FOOD_ORDER',
                 providerPermission: 'food.prepare',
                 details: `Pesanan Kuliner: ${foodName.trim()}`,
@@ -1151,16 +1151,21 @@
         },
 
         Jobs: JobsApp,
-        Shopee: ShopeeApp,
-        Halodoc: HalodocApp,
-        Police: PoliceApp,
+        Market: MarketApp,
+        Shopee: MarketApp, // Compatibility Alias
+        Medika: MedikaApp,
+        Halodoc: MedikaApp, // Compatibility Alias
+        Patroli: PatroliApp,
+        Police: PatroliApp, // Compatibility Alias
         Bank: BankApp,
         Gov: GovApp,
         Legal: LegalApp,
         Tech: TechApp,
         News: NewsApp,
-        Courier: CourierApp,
-        Food: FoodApp,
+        Kurir: KurirApp,
+        Courier: KurirApp, // Compatibility Alias
+        Bistro: BistroApp,
+        Food: BistroApp, // Compatibility Alias
         Notifications: NotificationsApp,
         Services: ServiceEngine,
         NotificationsEngine: NotificationEngine
@@ -1171,14 +1176,14 @@
 
     window.ShopModule = {
         initCityDatabase: initUnifiedCityState,
-        registerStorePrompt: () => ShopeeApp.registerStorePrompt(),
-        addStoreItemPrompt: () => ShopeeApp.addProductPrompt(),
+        registerStorePrompt: () => MarketApp.registerStorePrompt(),
+        addStoreItemPrompt: () => MarketApp.addProductPrompt(),
         deleteProduct: (id) => {
             delete window.cityState.marketplace.products[id];
             if (typeof window.saveState === 'function') window.saveState();
         },
-        buyProduct: (id) => ShopeeApp.buy(id),
-        renderShopAppUI: () => ShopeeApp.render()
+        buyProduct: (id) => MarketApp.buy(id),
+        renderShopAppUI: () => MarketApp.render()
     };
 
     window.JobsModule = {
@@ -1190,13 +1195,13 @@
         resignCurrentJob: () => JobsApp.resign(),
         doWorkShift: (jobId, isOvertime) => JobsApp.work(isOvertime),
         renderJobsAppUI: () => JobsApp.render(),
-        renderHalodocAppUI: () => HalodocApp.render(),
-        requestMedicalCall: () => HalodocApp.requestAmbulance(),
+        renderHalodocAppUI: () => MedikaApp.render(),
+        requestMedicalCall: () => MedikaApp.requestAmbulance(),
         treatMedicalCall: (idx) => {},
-        renderPoliceHubAppUI: () => PoliceApp.render(),
-        issuePoliceTicketPrompt: () => PoliceApp.issueTicketPrompt(),
-        issueDpoPrompt: () => PoliceApp.issueDpoPrompt(),
-        payPoliceTicket: (id) => PoliceApp.payTicket(id)
+        renderPoliceHubAppUI: () => PatroliApp.render(),
+        issuePoliceTicketPrompt: () => PatroliApp.issueTicketPrompt(),
+        issueDpoPrompt: () => PatroliApp.issueDpoPrompt(),
+        payPoliceTicket: (id) => PatroliApp.payTicket(id)
     };
 
     // Inisialisasi Otomatis saat Script Dimuat
