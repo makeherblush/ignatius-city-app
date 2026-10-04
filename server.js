@@ -1,16 +1,21 @@
 // ==========================================
 // RAILWAY BACKEND SERVER V7 (SERVER.JS)
-// FULL PARITY WEBSOCKET ENGINE & USER REGISTRY
+// FULL PARITY WEBSOCKET ENGINE & STATIC SERVING
 // ==========================================
 
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Serving file statis frontend (index.html, css, js, assets) dari root directory
+app.use(express.static(path.join(__dirname, './')));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -33,6 +38,34 @@ const offlineQueue = new Map();
 
 // Global Message Store (Memory Persistence)
 const globalMessageStore = [];
+
+// ==========================================
+// HTTP ROUTES & HEALTH CHECKS
+// ==========================================
+
+// Rute Root: Buka index.html jika ada, atau tampilkan Status API
+app.get('/', (req, res) => {
+    const indexPath = path.join(__dirname, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+    }
+    return res.json({
+        status: "online",
+        system: "Ignatius City Engine V7 API & WebSocket Server",
+        port: PORT
+    });
+});
+
+// Endpoint fallback REST API untuk sync riwayat obrolan
+app.get('/api/messages/:nik', (req, res) => {
+    const userNik = String(req.params.nik).trim();
+    const userMsgs = globalMessageStore.filter(m => m.recipientNik === userNik || m.senderNik === userNik);
+    return res.json({ success: true, messages: userMsgs });
+});
+
+// ==========================================
+// WEBSOCKET ENGINE (SOCKET.IO)
+// ==========================================
 
 io.on('connection', (socket) => {
 
@@ -168,13 +201,6 @@ io.on('connection', (socket) => {
             io.emit('online_users_list', onlineNiks);
         }
     });
-});
-
-// Endpoint fallback REST API untuk sync riwayat obrolan
-app.get('/api/messages/:nik', (req, res) => {
-    const userNik = String(req.params.nik).trim();
-    const userMsgs = globalMessageStore.filter(m => m.recipientNik === userNik || m.senderNik === userNik);
-    return res.json({ success: true, messages: userMsgs });
 });
 
 server.listen(PORT, () => console.log(`🚀 Server Railway Engine V7 Aktif di Port ${PORT}`));
