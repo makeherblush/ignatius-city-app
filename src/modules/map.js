@@ -6,7 +6,20 @@ const MapModule = {
     currentFilter: 'all',
     searchQuery: '',
 
-    // --- 1. REGISTRY MINI-GAMES (CLEAN DECOUPLED ARCHITECTURE) ---
+    // REGISTRY KATALOG NAMA ITEM MANUSIAWI (TANPA PREFIX PREFIX UNIK)
+    ITEM_CATALOG_DB: {
+        'item_medkit': { id: 'item_medkit', name: 'Kotak P3K Medkit', price: 1500, desc: 'Memulihkan +50% Vitality' },
+        'item_bandage': { id: 'item_bandage', name: 'Pembalut Perban Dokter', price: 500, desc: 'Memulihkan +20% Vitality' },
+        'item_bread': { id: 'item_bread', name: 'Roti Tawar Fresh', price: 250, desc: 'Memulihkan +15% Vitality' },
+        'item_water': { id: 'item_water', name: 'Air Mineral Botol', price: 150, desc: 'Memulihkan +10% Vitality' },
+        'item_coffee': { id: 'item_coffee', name: 'Kopi Hitam Mantap', price: 400, desc: 'Memulihkan +25% Vitality' },
+        'item_energy_drink': { id: 'item_energy_drink', name: 'Minuman Energi GT', price: 800, desc: 'Memulihkan +40% Vitality' },
+        'item_sandwich': { id: 'item_sandwich', name: 'Sandwich Daging Sapi', price: 600, desc: 'Memulihkan +30% Vitality' },
+        'item_car_1': { id: 'item_car_1', name: 'Mobil Sedan Sport GT', price: 150000, desc: 'Kendaraan roda 4 kecepatan tinggi', type: 'vehicle' },
+        'item_bike_1': { id: 'item_bike_1', name: 'Motor Matic 150cc', price: 35000, desc: 'Kendaraan roda 2 lincah & hemat BBM', type: 'vehicle' }
+    },
+
+    // REGISTRY MINI-GAMES
     MINIGAME_REGISTRY: {
         'cert_exam_law': { title: '⚖️ Ujian Sertifikasi Hukum', icon: 'fa-gavel', handler: 'startCertExam', args: ['law'], fee: 2500 },
         'cert_exam_med': { title: '🩺 Ujian Izin Praktek Medis', icon: 'fa-stethoscope', handler: 'startCertExam', args: ['med'], fee: 3000 },
@@ -19,15 +32,13 @@ const MapModule = {
         'sim_quiz': { title: '📝 Ujian Teori SIM Lantas', icon: 'fa-file-pen', handler: 'startSimQuiz', args: [], fee: 1000 }
     },
 
-    // --- 2. ENSURE STATE, MIGRATION & SAFETY LAYER ---
     ensureState() {
         if (!window.gameState) window.gameState = {};
         if (!window.gameState.map) {
             window.gameState.map = {
                 currentLocId: 'loc_capil',
                 favorites: ['loc_cafe', 'loc_bank'],
-                recent: ['loc_capil'],
-                navigation: null
+                recent: ['loc_capil']
             };
         }
 
@@ -37,7 +48,6 @@ const MapModule = {
         if (!Array.isArray(mapState.recent)) mapState.recent = [];
     },
 
-    // --- 3. DATABASE LOKASI DENGAN KOORDINAT & JAM OPERASIONAL ---
     getLocationsList() {
         if (window.LOCATIONS_DATABASE && Array.isArray(window.LOCATIONS_DATABASE) && window.LOCATIONS_DATABASE.length >= 10) {
             return window.LOCATIONS_DATABASE;
@@ -81,7 +91,7 @@ const MapModule = {
                 district: 'Civic Center',
                 address: 'Jl. Bhayangkara No. 9',
                 coordinates: { x: 180, y: 220 },
-                openHours: { open: 0, close: 24 }, // 24 Jam
+                openHours: { open: 0, close: 24 },
                 desc: 'Markas kepolisian, tempat pendaftaran SIM, & arena tes menembak.',
                 iconFa: 'fa-shield-halved',
                 color: 'from-indigo-600 to-slate-900',
@@ -153,7 +163,7 @@ const MapModule = {
                 district: 'Entertainment District',
                 address: 'Jl. Executive No. 777',
                 coordinates: { x: 500, y: 450 },
-                openHours: { open: 18, close: 4 }, // Malam
+                openHours: { open: 18, close: 4 },
                 desc: 'Arena permainan ketangkasan dan Roda Jackpot berhadiah Crest.',
                 iconFa: 'fa-dice',
                 color: 'from-purple-600 to-slate-950',
@@ -190,7 +200,6 @@ const MapModule = {
         ];
     },
 
-    // --- 4. ENGINE KALKULASI JARAK, WAKTU TEMPUH & APLIKASI JAM OPERASIONAL ---
     calculateDistance(loc1, loc2) {
         if (!loc1 || !loc2 || !loc1.coordinates || !loc2.coordinates) return 1.0;
         const dx = loc1.coordinates.x - loc2.coordinates.x;
@@ -200,7 +209,7 @@ const MapModule = {
     },
 
     calculateTravelTime(distKm, mode = 'walk') {
-        let speedKmH = 4.0; // Jalan kaki
+        let speedKmH = 4.0;
         if (mode === 'bike') speedKmH = 15.0;
         if (mode === 'car') speedKmH = 40.0;
 
@@ -217,12 +226,11 @@ const MapModule = {
         if (open < close) {
             return currentHour >= open && currentHour < close;
         } else {
-            // Jam operasional melintasi tengah malam (misal 18:00 - 04:00)
             return currentHour >= open || currentHour < close;
         }
     },
 
-    // --- 5. SYSTEM NAVIGATION & TRAVEL ENGINE ---
+    // PERBAIKAN 2: CEK KEPEMILIKAN KENDARAAN SAAT NAVIGASI
     startNavigation(targetLocId, transportMode = 'walk') {
         this.ensureState();
         const locations = this.getLocationsList();
@@ -236,34 +244,27 @@ const MapModule = {
             return;
         }
 
+        const vehicles = window.gameState.economy?.vehicles || [];
+
+        if (transportMode === 'car') {
+            const hasCar = vehicles.some(v => v.type === 'vehicle' || v.id?.includes('car') || v.name?.toLowerCase().includes('mobil'));
+            if (!hasCar) {
+                if (typeof showToast === 'function') showToast('Kamu belum punya Mobil! Beli di Showroom Otomotif dulu.', 'error');
+                return;
+            }
+        } else if (transportMode === 'bike') {
+            const hasBike = vehicles.some(v => v.type === 'bike' || v.id?.includes('bike') || v.name?.toLowerCase().includes('motor'));
+            if (!hasBike) {
+                if (typeof showToast === 'function') showToast('Kamu belum punya Motor/Sepeda! Beli di Showroom Otomotif dulu.', 'error');
+                return;
+            }
+        }
+
         const distKm = this.calculateDistance(currentLoc, targetLoc);
         const etaMinutes = this.calculateTravelTime(distKm, transportMode);
 
-        // Jika menggunakan Mobil, potong BBM dari Kendaraan Aktif
-        if (transportMode === 'car') {
-            const vehicles = window.gameState.economy?.vehicles || [];
-            const activeVeh = vehicles.find(v => v.isEquipped);
-
-            if (!activeVeh) {
-                if (typeof showToast === 'function') showToast('Kamu belum mengendarai mobil! Pilih mobil di Garasi.', 'error');
-                return;
-            }
-
-            const fuelNeeded = Math.ceil(distKm * 2); // 2% BBM per KM
-            if (activeVeh.fuel < fuelNeeded) {
-                if (typeof showToast === 'function') showToast(`BBM ${activeVeh.name} habis (${activeVeh.fuel}%). Isi bensin dulu!`, 'error');
-                return;
-            }
-
-            // Potong BBM & Tambah KM
-            activeVeh.fuel -= fuelNeeded;
-            activeVeh.mileage += Math.round(distKm);
-        }
-
-        // Pindahkan Posisi Pemain
         window.gameState.map.currentLocId = targetLoc.id;
 
-        // Catat Recent Locations
         if (!window.gameState.map.recent.includes(targetLoc.id)) {
             window.gameState.map.recent.unshift(targetLoc.id);
             if (window.gameState.map.recent.length > 5) window.gameState.map.recent.pop();
@@ -274,8 +275,8 @@ const MapModule = {
 
         if (typeof window.showIOSNotification === 'function') {
             window.showIOSNotification(
-                'GPS Navigation',
-                `Tiba di ${targetLoc.name} (${distKm} km, ETA ${etaMinutes} mnt via ${transportMode}).`,
+                'Tiba di Lokasi',
+                `Kamu telah sampai di ${targetLoc.name} (${distKm} km via ${transportMode}).`,
                 'Apple Maps',
                 'fa-location-arrow'
             );
@@ -301,7 +302,6 @@ const MapModule = {
         if (typeof openApp === 'function') openApp('citymap');
     },
 
-    // --- 6. SYSTEM EMERGENCY DISPATCHER (911) ---
     callEmergency(type) {
         const typeLabels = {
             medical: { title: '🚑 Ambulans IGD RSUD', msg: 'Tim Medis IGD meluncur ke lokasimu.' },
@@ -324,7 +324,7 @@ const MapModule = {
         }
     },
 
-    // --- 7. RENDER APPLE MAPS-STYLE MAIN UI ---
+    // RENDER MAIN MAP UI DENGAN FIX TAB SWIPE
     renderMapUI() {
         this.ensureState();
         const locations = this.getLocationsList();
@@ -332,14 +332,12 @@ const MapModule = {
         const currentLoc = locations.find(l => l.id === currentLocId) || locations[1];
         const favIds = window.gameState.map.favorites;
 
-        // Filter & Search Logic
         let filtered = locations.filter(loc => {
             const matchesCat = this.currentFilter === 'all' || loc.category.toLowerCase() === this.currentFilter.toLowerCase();
             const matchesSearch = !this.searchQuery || loc.name.toLowerCase().includes(this.searchQuery.toLowerCase()) || loc.district.toLowerCase().includes(this.searchQuery.toLowerCase());
             return matchesCat && matchesSearch;
         });
 
-        // Render List Card Tempat
         let placesHtml = '';
         if (filtered.length === 0) {
             placesHtml = `<p class="text-[10px] text-slate-500 text-center py-4">Tidak ada lokasi yang cocok dengan pencarian.</p>`;
@@ -384,14 +382,14 @@ const MapModule = {
 
         return `
             <div class="space-y-4">
-                <!-- HERO MAP HEADER (APPLE MAPS STYLE) -->
+                <!-- HERO MAP HEADER -->
                 <div class="relative w-full h-40 rounded-3xl overflow-hidden border border-white/20 shadow-2xl bg-slate-900 p-4 flex flex-col justify-between"
                      style="background-image: radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.25) 0%, rgba(15, 23, 42, 0.95) 100%), url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=600&q=80'); background-size: cover; background-position: center;">
                     
                     <div class="flex justify-between items-start z-10">
                         <div>
                             <span class="text-[9px] font-mono font-extrabold text-sky-400 uppercase tracking-widest block flex items-center gap-1">
-                                <i class="fa-solid fa-location-crosshairs animate-pulse"></i> GPS ACTIVE
+                                <i class="fa-solid fa-location-crosshairs animate-pulse"></i> LOKASI KAMU SEKARANG
                             </span>
                             <h3 class="text-sm font-bold text-white drop-shadow-md">📍 ${currentLoc.name}</h3>
                             <p class="text-[9px] text-slate-300 font-medium">${currentLoc.district} · ${currentLoc.address}</p>
@@ -402,7 +400,7 @@ const MapModule = {
                         </span>
                     </div>
 
-                    <!-- EMERGENCY CALL SHORTCUTS -->
+                    <!-- SHORTCUT DARURAT -->
                     <div class="flex items-center justify-between gap-1.5 z-10 pt-2 border-t border-white/10">
                         <span class="text-[8px] text-slate-300 font-bold uppercase tracking-wider">Darurat 911:</span>
                         <div class="flex gap-1">
@@ -413,7 +411,7 @@ const MapModule = {
                     </div>
                 </div>
 
-                <!-- SEARCH & CATEGORY TABS -->
+                <!-- SEARCH & FILTER TAB (PERBAIKAN 1: BISA DISWIPE SWIPE) -->
                 <div class="space-y-2">
                     <div class="relative">
                         <input type="text" value="${this.searchQuery}" oninput="MapModule.searchQuery = this.value; if(typeof openApp==='function') openApp('citymap');" 
@@ -421,17 +419,17 @@ const MapModule = {
                                class="w-full px-4 py-2.5 bg-slate-900/90 border border-white/15 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 font-medium shadow-inner">
                     </div>
 
-                    <div class="flex gap-1.5 overflow-x-auto pb-1 text-[10px] font-bold scrollbar-none">
-                        <button onclick="MapModule.currentFilter='all'; openApp('citymap');" class="px-3 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='all' ? 'bg-sky-500 text-white' : 'glass-card text-slate-400'}">Semua</button>
-                        <button onclick="MapModule.currentFilter='Food'; openApp('citymap');" class="px-3 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Food' ? 'bg-amber-500 text-slate-950' : 'glass-card text-slate-400'}">☕ Kuliner</button>
-                        <button onclick="MapModule.currentFilter='Shopping'; openApp('citymap');" class="px-3 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Shopping' ? 'bg-emerald-500 text-slate-950' : 'glass-card text-slate-400'}">🛍️ Belanja</button>
-                        <button onclick="MapModule.currentFilter='Bank'; openApp('citymap');" class="px-3 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Bank' ? 'bg-yellow-500 text-slate-950' : 'glass-card text-slate-400'}">🏦 Bank</button>
-                        <button onclick="MapModule.currentFilter='Kesehatan'; openApp('citymap');" class="px-3 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Kesehatan' ? 'bg-rose-500 text-white' : 'glass-card text-slate-400'}">🏥 Kesehatan</button>
-                        <button onclick="MapModule.currentFilter='Keamanan'; openApp('citymap');" class="px-3 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Keamanan' ? 'bg-indigo-500 text-white' : 'glass-card text-slate-400'}">🛡️ Polisi</button>
+                    <div class="flex gap-1.5 overflow-x-auto pb-2 text-[10px] font-bold whitespace-nowrap touch-pan-x scrollbar-none">
+                        <button onclick="MapModule.currentFilter='all'; openApp('citymap');" class="px-3.5 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='all' ? 'bg-sky-500 text-white' : 'glass-card text-slate-400'}">Semua</button>
+                        <button onclick="MapModule.currentFilter='Food'; openApp('citymap');" class="px-3.5 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Food' ? 'bg-amber-500 text-slate-950' : 'glass-card text-slate-400'}">☕ Kuliner</button>
+                        <button onclick="MapModule.currentFilter='Shopping'; openApp('citymap');" class="px-3.5 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Shopping' ? 'bg-emerald-500 text-slate-950' : 'glass-card text-slate-400'}">🛍️️ Belanja</button>
+                        <button onclick="MapModule.currentFilter='Bank'; openApp('citymap');" class="px-3.5 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Bank' ? 'bg-yellow-500 text-slate-950' : 'glass-card text-slate-400'}">🏦 Bank</button>
+                        <button onclick="MapModule.currentFilter='Kesehatan'; openApp('citymap');" class="px-3.5 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Kesehatan' ? 'bg-rose-500 text-white' : 'glass-card text-slate-400'}">🏥 Kesehatan</button>
+                        <button onclick="MapModule.currentFilter='Keamanan'; openApp('citymap');" class="px-3.5 py-1.5 rounded-xl shrink-0 ${this.currentFilter==='Keamanan' ? 'bg-indigo-500 text-white' : 'glass-card text-slate-400'}">🛡️ Polisi</button>
                     </div>
                 </div>
 
-                <!-- LOCATION LIST -->
+                <!-- LIST DESTINASI -->
                 <div class="space-y-2">
                     <div class="flex justify-between items-center text-xs font-bold text-slate-300">
                         <span>📍 Destinasi Terdekat (${filtered.length})</span>
@@ -444,12 +442,15 @@ const MapModule = {
         `;
     },
 
-    // --- 8. DETAIL LOKASI, MODAL NAVIGASI & FITUR EXAM ---
+    // PERBAIKAN 3 & 4: KUNCI FITUR JIKA BELUM SAMPAI + NAMA ITEM BERSIH
     openLocationDetail(locId) {
         this.ensureState();
         const locations = this.getLocationsList();
         const loc = locations.find(l => l.id === locId) || locations[0];
-        const currentLoc = locations.find(l => l.id === window.gameState.map.currentLocId) || locations[1];
+        const currentLocId = window.gameState.map.currentLocId;
+        const currentLoc = locations.find(l => l.id === currentLocId) || locations[1];
+
+        const isArrived = (currentLocId === loc.id);
 
         const body = document.getElementById('app-window-body');
         const title = document.getElementById('app-window-title');
@@ -461,7 +462,6 @@ const MapModule = {
         const walkMin = this.calculateTravelTime(distKm, 'walk');
         const bikeMin = this.calculateTravelTime(distKm, 'bike');
         const carMin = this.calculateTravelTime(distKm, 'car');
-        const isOpen = this.isLocationOpen(loc);
 
         // NPC Section
         let npcHtml = '';
@@ -479,53 +479,41 @@ const MapModule = {
             `;
         }
 
-        // Mini Games Trigger via REGISTRY
+        // Mini Games Trigger
         let minigamesHtml = '';
         if (loc.minigames && loc.minigames.length > 0) {
             loc.minigames.forEach(mgKey => {
                 const spec = this.MINIGAME_REGISTRY[mgKey];
                 if (spec) {
                     minigamesHtml += `
-                        <button onclick="MapModule.executeMiniGame('${mgKey}', '${loc.id}')" class="w-full p-3 glass-card hover:border-amber-400 text-white font-bold text-xs rounded-2xl shadow-lg flex items-center justify-between transition-all active:scale-95">
-                            <span class="flex items-center gap-2"><i class="fa-solid ${spec.icon} text-amber-300 text-sm"></i> ${spec.title}</span>
-                            <span class="text-[9px] px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded font-mono font-bold">${spec.fee > 0 ? spec.fee.toLocaleString() + ' C' : 'GRATIS'}</span>
+                        <button ${!isArrived ? 'disabled' : ''} onclick="MapModule.executeMiniGame('${mgKey}', '${loc.id}')" 
+                                class="w-full p-3 glass-card ${!isArrived ? 'opacity-40 cursor-not-allowed border-slate-700' : 'hover:border-amber-400 active:scale-95'} text-white font-bold text-xs rounded-2xl shadow-lg flex items-center justify-between transition-all">
+                            <span class="flex items-center gap-2">
+                                <i class="fa-solid ${spec.icon} text-amber-300 text-sm"></i> ${spec.title}
+                            </span>
+                            <span class="text-[9px] px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded font-mono font-bold">
+                                ${!isArrived ? '🔒 Belum Sampai' : (spec.fee > 0 ? spec.fee.toLocaleString() + ' C' : 'GRATIS')}
+                            </span>
                         </button>
                     `;
                 }
             });
         }
 
-        // Licenses Section
-        let licensesHtml = '';
-        if (loc.licenses && loc.licenses.length > 0) {
-            loc.licenses.forEach(licId => {
-                const owned = (window.gameState?.user?.legal?.licenses || []).includes(licId);
-                licensesHtml += `
-                    <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs border border-white/5">
-                        <span class="font-bold text-white text-[11px]">${licId}</span>
-                        ${owned ? `
-                            <span class="text-[9px] text-emerald-400 font-bold px-2 py-0.5 bg-emerald-500/20 rounded border border-emerald-500/30">LULUS / SAH</span>
-                        ` : `
-                            <span class="text-[9px] text-amber-300 font-semibold">Memerlukan Ujian Profesi</span>
-                        `}
-                    </div>
-                `;
-            });
-        }
-
-        // Toko Item Section
+        // Toko Item Section (PERBAIKAN 4: NAMA ITEM BERSIH TANPA PREFIX)
         let itemsHtml = '';
         if (loc.items && loc.items.length > 0) {
             loc.items.forEach(itemId => {
-                const itemSpec = (window.ITEMS_DATABASE || []).find(i => i.id === itemId) || { id: itemId, name: itemId, price: 500, desc: 'Barang toko' };
+                const itemSpec = (window.ITEMS_DATABASE || []).find(i => i.id === itemId) || this.ITEM_CATALOG_DB[itemId] || { id: itemId, name: 'Barang Toko', price: 500, desc: 'Barang kebutuhan warga' };
                 itemsHtml += `
                     <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs border border-white/5">
                         <div>
                             <h5 class="font-bold text-white text-[11px]">${itemSpec.name}</h5>
                             <p class="text-[9px] text-slate-400">${itemSpec.desc}</p>
                         </div>
-                        <button onclick="EconomyModule.buyItem('${itemSpec.id}', '${loc.id}')" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] rounded-xl shadow-md transition-all active:scale-95">
-                            Beli (${itemSpec.price.toLocaleString()} C)
+                        <button ${!isArrived ? 'disabled' : ''} onclick="EconomyModule.buyItem('${itemSpec.id}', '${loc.id}')" 
+                                class="px-3 py-1.5 ${!isArrived ? 'bg-slate-800 text-slate-500 opacity-50 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-400 text-slate-950 active:scale-95'} font-bold text-[10px] rounded-xl shadow-md transition-all">
+                            ${!isArrived ? '🔒 Belum Sampai' : `Beli (${itemSpec.price.toLocaleString()} C)`}
                         </button>
                     </div>
                 `;
@@ -548,23 +536,36 @@ const MapModule = {
                     </div>
                 </div>
 
-                <!-- NAVIGATION BUTTONS MODE -->
+                <!-- PEMBERITAHUAN JIKA BELUM DILOKASI -->
+                ${!isArrived ? `
+                    <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-[10px] text-amber-300 font-semibold flex items-center gap-2">
+                        <i class="fa-solid fa-lock text-sm shrink-0"></i>
+                        <span>Kamu belum berada di lokasi ini. Gunakan tombol navigasi di bawah untuk bepergian ke lokasi ini terlebih dahulu.</span>
+                    </div>
+                ` : `
+                    <div class="p-2.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-[10px] text-emerald-300 font-bold flex items-center gap-2">
+                        <i class="fa-solid fa-circle-check text-sm shrink-0"></i>
+                        <span>Kamu sedang berada di lokasi ini. Semua layanan toko & ujian aktif!</span>
+                    </div>
+                `}
+
+                <!-- NAVIGATION MODES -->
                 <div class="glass-card p-3 rounded-2xl space-y-2 border border-sky-500/30">
                     <div class="flex items-center justify-between text-xs font-bold text-white">
-                        <span>🗺️ Navigasi Rute Ke Lokasi Ini</span>
+                        <span>🗺️ Navigasi Perjalanan Ke Lokasi Ini</span>
                         <span class="text-sky-400 font-mono">${distKm} km</span>
                     </div>
 
                     <div class="grid grid-cols-3 gap-2 pt-1">
-                        <button onclick="MapModule.startNavigation('${loc.id}', 'walk')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-[10px] rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all">
+                        <button onclick="MapModule.startNavigation('${loc.id}', 'walk')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-[10px] rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all active:scale-95">
                             <span>🚶 Jalan Kaki</span>
                             <span class="text-[8px] text-sky-300 font-mono">${walkMin} mnt</span>
                         </button>
-                        <button onclick="MapModule.startNavigation('${loc.id}', 'bike')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-[10px] rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all">
-                            <span>🚲 Sepeda</span>
+                        <button onclick="MapModule.startNavigation('${loc.id}', 'bike')" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold text-[10px] rounded-xl border border-white/10 flex flex-col items-center justify-center transition-all active:scale-95">
+                            <span>🚲 Sepeda / Motor</span>
                             <span class="text-[8px] text-sky-300 font-mono">${bikeMin} mnt</span>
                         </button>
-                        <button onclick="MapModule.startNavigation('${loc.id}', 'car')" class="py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] rounded-xl shadow-lg flex flex-col items-center justify-center transition-all">
+                        <button onclick="MapModule.startNavigation('${loc.id}', 'car')" class="py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] rounded-xl shadow-lg flex flex-col items-center justify-center transition-all active:scale-95">
                             <span>🚗 Naik Mobil</span>
                             <span class="text-[8px] text-white font-mono font-bold">${carMin} mnt</span>
                         </button>
@@ -582,16 +583,9 @@ const MapModule = {
                     </div>
                 ` : ''}
 
-                ${licensesHtml ? `
-                    <div class="space-y-2">
-                        <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">📜 Pengurusan Sertifikat Resmi</h4>
-                        <div class="space-y-1.5">${licensesHtml}</div>
-                    </div>
-                ` : ''}
-
                 ${itemsHtml ? `
                     <div class="space-y-2">
-                        <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider">🛍️ Katalogue Toko & Barang</h4>
+                        <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider">🛍️ Katalog Toko & Barang</h4>
                         <div class="space-y-2">${itemsHtml}</div>
                     </div>
                 ` : ''}
@@ -599,7 +593,6 @@ const MapModule = {
         `;
     },
 
-    // Executer Handler MiniGames via Registry
     executeMiniGame(key, locId) {
         const spec = this.MINIGAME_REGISTRY[key];
         if (!spec) return;
@@ -609,7 +602,6 @@ const MapModule = {
         }
     },
 
-    // --- 9. UJIAN SERTIFIKASI PROFESI (BANK SOAL MULTI-QUESTION) ---
     startCertExam(certType, locId) {
         const body = document.getElementById('app-window-body');
         if (!body) return;
@@ -621,8 +613,7 @@ const MapModule = {
                 fee: 2500,
                 questions: [
                     { q: 'Dokumen tertulis resmi pemerintah yang menjadi bukti identitas tunggal warga adalah?', options: ['A. KTP / NIK Resmi', 'B. Nota Minimarket', 'C. Struk Parkir'], correct: 0 },
-                    { q: 'Asal-usul hukum tertinggi yang mengatur tata tertib dan hak warga negara adalah?', options: ['A. Undang-Undang Dasar', 'B. Janji Lisan', 'C. Peraturan Toko'], correct: 0 },
-                    { q: 'Tindakan yang harus dilakukan jika terjadi sengketa kontrak bisnis antar-pihak?', options: ['A. Mediasi / Jalur Hukum Resmi', 'B. Main Hakim Sendiri', 'C. Menghapus Pesan'], correct: 0 }
+                    { q: 'Asal-usul hukum tertinggi yang mengatur tata tertib dan hak warga negara adalah?', options: ['A. Undang-Undang Dasar', 'B. Janji Lisan', 'C. Peraturan Toko'], correct: 0 }
                 ]
             },
             med: {
@@ -630,8 +621,7 @@ const MapModule = {
                 certName: 'Izin Praktek Medis',
                 fee: 3000,
                 questions: [
-                    { q: 'Tindakan pertolongan pertama pada pasien pingsan karena Vitality 0% adalah?', options: ['A. Penanganan Darurat IGD & Medkit', 'B. Dibiarkan di trotoar', 'C. Diberi sanksi tilang'], correct: 0 },
-                    { q: 'Fungsi utama dari obat Medkit di RSUD Medika Utama adalah?', options: ['A. Pemulihan Vitality & Kesehatan Pasien', 'B. Bensin Kendaraan', 'C. Bahan Bangunan'], correct: 0 }
+                    { q: 'Tindakan pertolongan pertama pada pasien pingsan karena Vitality 0% adalah?', options: ['A. Penanganan Darurat IGD & Medkit', 'B. Dibiarkan di trotoar', 'C. Diberi sanksi tilang'], correct: 0 }
                 ]
             },
             it: {
@@ -639,8 +629,7 @@ const MapModule = {
                 certName: 'Sertifikat IT & Cyber',
                 fee: 2000,
                 questions: [
-                    { q: 'Bahasa pemrograman gaya UI yang digunakan pada arsitektur web modern adalah?', options: ['A. CSS / Tailwind CSS', 'B. Karburator', 'C. Oli Mesin'], correct: 0 },
-                    { q: 'Langkah pengamanan akun dari ancaman peretasan digital yang paling efektif?', options: ['A. PIN Kuat & Otentikasi 2FA', 'B. Menggunakan tanggal lahir', 'C. Membagikan password'], correct: 0 }
+                    { q: 'Bahasa pemrograman gaya UI yang digunakan pada arsitektur web modern adalah?', options: ['A. CSS / Tailwind CSS', 'B. Karburator', 'C. Oli Mesin'], correct: 0 }
                 ]
             },
             security: {
@@ -655,7 +644,6 @@ const MapModule = {
 
         const bank = EXAM_BANKS[certType] || EXAM_BANKS.law;
 
-        // Potong Biaya Ujian via EconomyModule
         if (window.EconomyModule && typeof window.EconomyModule.pay === 'function') {
             const paid = window.EconomyModule.pay({
                 amount: bank.fee,
@@ -702,7 +690,6 @@ const MapModule = {
             if (currentQ < bank.questions.length) {
                 renderQuestion();
             } else {
-                // Selesai Ujian
                 delete window.handleExamAns;
                 const passed = score >= 70;
 
@@ -727,7 +714,6 @@ const MapModule = {
         renderQuestion();
     },
 
-    // --- 10. MINI-GAMES INTEGRATED WITH ECONOMY V2 ---
     startFishingGame(locId) {
         if ((window.gameState?.vitality || 0) < 5) {
             if (typeof showToast === 'function') showToast('Vitality kurang buat mancing!', 'error');
@@ -787,7 +773,6 @@ const MapModule = {
 
         const caught = fishList[Math.floor(Math.random() * fishList.length)];
 
-        // Pemasukan via EconomyModule V2
         if (window.EconomyModule && typeof window.EconomyModule.addIncome === 'function') {
             window.EconomyModule.addIncome({
                 amount: caught.rewardCrest,
@@ -804,7 +789,6 @@ const MapModule = {
     },
 
     startSpinWheel(locId) {
-        // Biaya via EconomyModule V2
         if (window.EconomyModule && typeof window.EconomyModule.pay === 'function') {
             const paid = window.EconomyModule.pay({
                 amount: 500,
@@ -932,7 +916,6 @@ const MapModule = {
     }
 };
 
-// Inisialisasi otomatis saat modul dimuat
 MapModule.ensureState();
 
 window.MapModule = MapModule;
