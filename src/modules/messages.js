@@ -1,9 +1,8 @@
 // ==========================================
-// ENGINE PERPESANAN FULL BERBASIS NIK (MESSAGES.JS)
+// ENGINE PERPESANAN WEBSOCKET REALTIME (MESSAGES.JS)
 // ==========================================
 
 const TelegramUserBridge = {
-    // Membaca variabel API URL dari window.APP_CONFIG atau lokasi origin
     getApiUrl() {
         return window.APP_CONFIG?.API_URL || window.location.origin;
     },
@@ -28,124 +27,109 @@ const TelegramUserBridge = {
 };
 
 const MessagingService = {
-    pollingTimer: null,
-    lastSyncTimestamp: 0,
+    socket: null,
+    onlineUsersSet: new Set(),
 
     getConversationId(nikA, nikB) {
         return 'conv_' + [String(nikA).trim(), String(nikB).trim()].sort().join('_');
     },
 
-    async sendMessage({ senderNik, senderName, recipientNik, text, type = 'text', payload = null }) {
+    // INISIALISASI KONEKSI WEBSOCKET INSTAN
+    initSocket() {
+        if (this.socket) return;
+
+        const baseUrl = TelegramUserBridge.getApiUrl();
+        if (typeof io === 'undefined') {
+            console.error('[SocketError]: SDK Socket.io belum di-load di index.html!');
+            return;
+        }
+
+        this.socket = io(baseUrl, {
+            transports: ['websocket', 'polling'],
+            reconnectionAttempts: 10
+        });
+
+        const me = TelegramUserBridge.getRealUser();
+
+        // 1. Register NIK ke server setelah terkoneksi
+        this.socket.on('connect', () => {
+            this.socket.emit('register_user', me.nik);
+        });
+
+        // 2. Menerima Pesan Real-Time Masuk
+        this.socket.on('receive_message', (msg) => {
+            this.handleIncomingMessage(msg);
+        });
+
+        // 3. Konfirmasi Pesan Terkirim
+        this.socket.on('message_sent_confirm', (msg) => {
+            this.saveMessageToLocal(msg);
+        });
+
+        // 4. Update Daftar User Online Live
+        this.socket.on('online_users_list', (usersArray) => {
+            this.onlineUsersSet = new Set(usersArray);
+            if (typeof openApp === 'function' && window.gameState?.chats?.activeConvId === null) {
+                // Re-render UI list kontak untuk update titik hijau online
+                openApp('messages');
+            }
+        });
+    },
+
+    // OLah Pesan Masuk dari Socket
+    handleIncomingMessage(msg) {
+        this.saveMessageToLocal(msg);
+
+        const me = TelegramUserBridge.getRealUser();
+        if (String(msg.senderNik) !== String(me.nik)) {
+            if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
+            if (typeof window.showIOSNotification === 'function') {
+                window.showIOSNotification(msg.senderName || `NIK: ${msg.senderNik}`, msg.text, 'Igna Talk', 'fa-comment');
+            }
+        }
+
+        if (typeof openApp === 'function') openApp('messages');
+    },
+
+    saveMessageToLocal(msg) {
         if (!window.gameState.chats) window.gameState.chats = { conversations: {}, contacts: [] };
         
-        const activeConvId = window.gameState.chats.activeConvId;
-        const convId = activeConvId || this.getConversationId(senderNik, recipientNik);
+        const convId = this.getConversationId(msg.senderNik, msg.recipientNik);
         const chats = window.gameState.chats;
 
         if (!chats.conversations[convId]) {
             chats.conversations[convId] = {
                 id: convId,
-                participants: [senderNik, recipientNik],
+                participants: [msg.senderNik, msg.recipientNik],
                 messages: [],
-                lastMessageAt: Date.now()
+                lastMessageAt: msg.createdAt
             };
         }
 
-        try {
-            const baseUrl = TelegramUserBridge.getApiUrl();
-            const response = await fetch(`${baseUrl}/api/send-message`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    senderNik: senderNik,
-                    senderName: senderName,
-                    recipientNik: recipientNik,
-                    text: text,
-                    type: type,
-                    payload: payload
-                })
-            });
-
-            const resData = await response.json();
-            if (resData.success && resData.data) {
-                chats.conversations[convId].messages.push(resData.data);
-                chats.conversations[convId].lastMessageAt = Date.now();
-                if (typeof window.saveState === 'function') window.saveState();
-            }
-        } catch (err) {
-            console.warn('[Sync Error]: Offline fallback:', err);
-            
-            const offlineMsg = {
-                id: `msg_off_${Date.now()}`,
-                conversationId: convId,
-                senderNik: senderNik,
-                recipientNik: recipientNik,
-                text: text,
-                type: type,
-                createdAt: Date.now()
-            };
-            chats.conversations[convId].messages.push(offlineMsg);
+        const exists = chats.conversations[convId].messages.some(m => m.id === msg.id);
+        if (!exists) {
+            chats.conversations[convId].messages.push(msg);
+            chats.conversations[convId].lastMessageAt = msg.createdAt;
+            if (typeof window.saveState === 'function') window.saveState();
         }
     },
 
-    startPolling() {
-        if (this.pollingTimer) clearInterval(this.pollingTimer);
+    // KIRIM PESAN VIA SOCKET
+    sendMessage({ senderNik, senderName, recipientNik, text, type = 'text', payload = null }) {
+        if (!this.socket) this.initSocket();
 
-        this.pollingTimer = setInterval(async () => {
-            const me = TelegramUserBridge.getRealUser();
-            if (!me || !me.nik) return;
+        this.socket.emit('send_message', {
+            senderNik,
+            senderName,
+            recipientNik,
+            text,
+            type,
+            payload
+        });
+    },
 
-            try {
-                const baseUrl = TelegramUserBridge.getApiUrl();
-                const response = await fetch(`${baseUrl}/api/messages/${me.nik}?since=${this.lastSyncTimestamp}`);
-                const data = await response.json();
-
-                if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
-                    let hasNewIncoming = false;
-
-                    data.messages.forEach(msg => {
-                        const convId = this.getConversationId(msg.senderNik, msg.recipientNik);
-                        const chats = window.gameState.chats;
-
-                        if (!chats.conversations[convId]) {
-                            chats.conversations[convId] = {
-                                id: convId,
-                                participants: [msg.senderNik, msg.recipientNik],
-                                messages: [],
-                                lastMessageAt: msg.createdAt
-                            };
-                        }
-
-                        const exists = chats.conversations[convId].messages.some(m => m.id === msg.id);
-                        if (!exists) {
-                            chats.conversations[convId].messages.push(msg);
-                            chats.conversations[convId].lastMessageAt = msg.createdAt;
-
-                            if (String(msg.senderNik) !== String(me.nik)) {
-                                hasNewIncoming = true;
-                                if (typeof window.showIOSNotification === 'function') {
-                                    window.showIOSNotification(msg.senderName || `NIK: ${msg.senderNik}`, msg.text, 'Igna Talk', 'fa-comment');
-                                }
-                            }
-                        }
-
-                        if (msg.createdAt > this.lastSyncTimestamp) {
-                            this.lastSyncTimestamp = msg.createdAt;
-                        }
-                    });
-
-                    if (hasNewIncoming) {
-                        if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
-                        if (typeof window.saveState === 'function') window.saveState();
-                        if (document.getElementById('chat-input-msg') || chats.activeConvId) {
-                            if (typeof openApp === 'function') openApp('messages');
-                        }
-                    }
-                }
-            } catch (err) {
-                // Connection Error handling
-            }
-        }, 3000);
+    isUserOnline(nik) {
+        return this.onlineUsersSet.has(String(nik).trim());
     }
 };
 
@@ -181,7 +165,8 @@ const MessagesModule = {
             window.gameState.chats.contacts = [];
         }
 
-        MessagingService.startPolling();
+        // Aktifkan Socket Connection
+        MessagingService.initSocket();
     },
 
     addContactPrompt() {
@@ -255,7 +240,7 @@ const MessagesModule = {
         if (typeof openApp === 'function') openApp('messages');
     },
 
-    async sendMessage() {
+    sendMessage() {
         this.initChats();
         const input = document.getElementById('chat-input-msg');
         if (!input || !input.value.trim()) return;
@@ -278,7 +263,7 @@ const MessagesModule = {
             name: `Warga (${targetNik})`
         };
 
-        await MessagingService.sendMessage({
+        MessagingService.sendMessage({
             senderNik: me.nik,
             senderName: me.name,
             recipientNik: targetUser.nik,
@@ -287,8 +272,6 @@ const MessagesModule = {
         });
 
         input.value = '';
-        if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
-        openApp('messages');
     },
 
     shareCurrentLocation() {
@@ -314,7 +297,6 @@ const MessagesModule = {
         });
 
         if (typeof showToast === 'function') showToast('Lokasi GPS dikirim!', 'success');
-        openApp('messages');
     },
 
     renderMessagesAppUI() {
@@ -324,6 +306,7 @@ const MessagesModule = {
         const chats = window.gameState.chats;
         const contacts = chats.contacts || [];
 
+        // 1. RUANG CHAT AKTIF
         if (activeConvId) {
             const conv = chats.conversations[activeConvId] || { messages: [] };
             let targetNik = conv.participants ? conv.participants.find(p => p !== me.nik) : null;
@@ -333,6 +316,7 @@ const MessagesModule = {
             }
             
             let targetUser = contacts.find(c => c.nik === targetNik) || { name: `Warga (${targetNik})`, nik: targetNik, avatar: 'https://ui-avatars.com/api/?name=Warga' };
+            const isOnline = MessagingService.isUserOnline(targetUser.nik);
 
             let msgsHtml = '';
             conv.messages.forEach(m => {
@@ -373,10 +357,16 @@ const MessagesModule = {
                             <button onclick="MessagesModule.closeChatRoom()" class="text-xs text-sky-400 font-bold flex items-center gap-1 pr-1 active:scale-95">
                                 <i class="fa-solid fa-chevron-left"></i>
                             </button>
-                            <img src="${targetUser.avatar}" class="w-8 h-8 rounded-full object-cover border border-emerald-400/40" alt="PP">
+                            <div class="relative">
+                                <img src="${targetUser.avatar}" class="w-8 h-8 rounded-full object-cover border border-emerald-400/40" alt="PP">
+                                ${isOnline ? '<div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-slate-900 rounded-full"></div>' : ''}
+                            </div>
                             <div>
-                                <h4 class="text-xs font-bold text-white">${this.escapeHTML(targetUser.name)}</h4>
-                                <span class="text-[9px] text-emerald-400 font-mono">NIK: ${this.escapeHTML(targetUser.nik)}</span>
+                                <h4 class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    ${this.escapeHTML(targetUser.name)}
+                                    <span class="text-[8px] font-mono ${isOnline ? 'text-emerald-400' : 'text-slate-500'}">(${isOnline ? 'Online' : 'Offline'})</span>
+                                </h4>
+                                <span class="text-[9px] text-slate-400 font-mono">NIK: ${this.escapeHTML(targetUser.nik)}</span>
                             </div>
                         </div>
 
@@ -406,6 +396,7 @@ const MessagesModule = {
             `;
         }
 
+        // 2. DAFTAR KONTAK WARGA
         let contactsHtml = '';
         const filteredList = contacts.filter(c => 
             !this.searchQuery || 
@@ -430,13 +421,14 @@ const MessagesModule = {
                 const lastMsgObj = lastMsgs.length > 0 ? lastMsgs[lastMsgs.length - 1] : null;
                 const lastMsgText = lastMsgObj ? lastMsgObj.text : 'Klik untuk membuka percakapan';
                 const timeStr = lastMsgObj ? new Date(lastMsgObj.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
+                const isOnline = MessagingService.isUserOnline(c.nik);
 
                 contactsHtml += `
                     <div class="glass-card p-3 rounded-2xl flex items-center justify-between hover:border-emerald-500/50 transition-all">
                         <div onclick="MessagesModule.openChatRoom('${convId}')" class="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer">
                             <div class="relative shrink-0">
                                 <img src="${c.avatar}" class="w-10 h-10 rounded-2xl object-cover border border-emerald-500/30" alt="PP">
-                                <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-sky-400 border-2 border-slate-900 rounded-full"></div>
+                                ${isOnline ? '<div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full"></div>' : '<div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-slate-600 border-2 border-slate-900 rounded-full"></div>'}
                             </div>
                             <div class="overflow-hidden">
                                 <div class="flex items-center gap-2">
@@ -461,7 +453,7 @@ const MessagesModule = {
                     <div class="flex items-center justify-between">
                         <div>
                             <span class="text-[8px] text-sky-400 font-mono uppercase font-bold block flex items-center gap-1">
-                                <i class="fa-solid fa-id-card text-sky-400"></i> IGNA TALK (NIK MESSAGING)
+                                <i class="fa-solid fa-wifi text-emerald-400 animate-pulse"></i> REALTIME SOCKET MESSAGING
                             </span>
                             <h4 class="text-xs font-bold text-white">${this.escapeHTML(me.name)} (NIK: ${this.escapeHTML(me.nik)})</h4>
                         </div>
