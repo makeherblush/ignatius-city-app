@@ -3,14 +3,26 @@
 // ==========================================
 
 const MapModule = {
-    renderMapUI() {
-        let locationsHtml = '';
-        const locations = window.LOCATIONS_DATABASE || [
-            { id: 'loc_capil', name: 'Kantor Dukcapil', category: 'Layanan Publik', desc: 'Pengurusan KTP Digital, KK, & Pernikahan', iconFa: 'fa-landmark', color: 'bg-sky-600' },
-            { id: 'loc_polres', name: 'Polres Ignatius', category: 'Keamanan', desc: 'Ujian SIM, izin senjata api, & kepolisian', iconFa: 'fa-shield-halved', color: 'bg-indigo-600' },
-            { id: 'loc_hospital', name: 'RSUD Kota Ignatius', category: 'Kesehatan', desc: 'IGD 24 jam & konsultasi medis', iconFa: 'fa-hospital', color: 'bg-rose-600' },
-            { id: 'loc_minimarket', name: 'Minimarket Serba Ada', category: 'Perbelanjaan', desc: 'Beli makanan, minuman, & perlengkapan', iconFa: 'fa-basket-shopping', color: 'bg-amber-600' }
+    getLocationsList() {
+        if (window.LOCATIONS_DATABASE && window.LOCATIONS_DATABASE.length > 0) {
+            return window.LOCATIONS_DATABASE;
+        }
+        // Fallback Lengkap Destinasi Kota
+        return [
+            { id: 'loc_capil', name: 'Kantor Dukcapil', category: 'Layanan Publik', desc: 'Pengurusan KTP Digital, KK, & Pernikahan', iconFa: 'fa-landmark', color: 'bg-sky-600', licenses: ['SIM A (Mobil)', 'SIM C (Motor)'] },
+            { id: 'loc_polres', name: 'Polres Ignatius', category: 'Keamanan', desc: 'Ujian SIM, izin senjata api, & kepolisian', iconFa: 'fa-shield-halved', color: 'bg-indigo-600', licenses: ['Sertifikat Security Pratama', 'Izin Senjata Api'] },
+            { id: 'loc_hospital', name: 'RSUD Kota Ignatius', category: 'Kesehatan', desc: 'IGD 24 jam & konsultasi medis', iconFa: 'fa-hospital', color: 'bg-rose-600', items: ['item_medkit', 'item_bandage'] },
+            { id: 'loc_minimarket', name: 'Minimarket Serba Ada', category: 'Perbelanjaan', desc: 'Beli makanan, minuman, & perlengkapan', iconFa: 'fa-basket-shopping', color: 'bg-amber-600', items: ['item_bread', 'item_water', 'item_coffee', 'item_energy_drink'] },
+            { id: 'loc_dealer', name: 'Dealer Otomotif Utama', category: 'Showroom', desc: 'Pusat pembelian mobil & motor kota', iconFa: 'fa-car', color: 'bg-emerald-600', items: ['item_car_1', 'item_bike_1'] },
+            { id: 'loc_cafe', name: 'Ignatius Coffee Shop', category: 'Tempat Santai', desc: 'Nongkrong & pulihkan Vitality warga', iconFa: 'fa-mug-hot', color: 'bg-yellow-700', items: ['item_coffee', 'item_sandwich'] },
+            { id: 'loc_park', name: 'Taman Kota Rindang', category: 'Fasilitas Umum', desc: 'Area memancing & bersantai gratis', iconFa: 'fa-tree', color: 'bg-teal-600' },
+            { id: 'loc_bank', name: 'Gedung Bank Central', category: 'Keuangan', desc: 'Layanan tabungan, bunga, & deposito', iconFa: 'fa-building-columns', color: 'bg-amber-700' }
         ];
+    },
+
+    renderMapUI() {
+        const locations = this.getLocationsList();
+        let locationsHtml = '';
 
         locations.forEach(loc => {
             locationsHtml += `
@@ -36,33 +48,20 @@ const MapModule = {
                         <i class="fa-solid fa-map-location-dot text-sky-400 text-base"></i>
                         <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">Peta Navigasi Kota</h4>
                     </div>
-                    <p class="text-[10px] text-slate-300">Pilih lokasi tujuan untuk mengakses fasilitas, minimarket, ujian SIM, atau tempat santai.</p>
+                    <p class="text-[10px] text-slate-300">Pilih lokasi tujuan untuk mengakses fasilitas, minimarket, dealer, atau tempat santai.</p>
                 </div>
 
                 <div class="space-y-2">
-                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📍 Destinasi & Fasilitas Kota</h4>
-                    <div class="space-y-2">
-                        ${locationsHtml}
-                    </div>
+                    <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">📍 Destinasi & Fasilitas Kota (${locations.length})</h4>
+                    <div class="space-y-2 max-h-80 overflow-y-auto">${locationsHtml}</div>
                 </div>
             </div>
         `;
     },
 
     openLocationDetail(locId) {
-        const locations = window.LOCATIONS_DATABASE || [];
-        let loc = locations.find(l => l.id === locId);
-
-        if (!loc) {
-            loc = {
-                id: locId,
-                name: 'Lokasi Kota',
-                category: 'Fasilitas Umum',
-                desc: 'Tempat umum di Kota Ignatius',
-                iconFa: 'fa-building',
-                color: 'bg-sky-600'
-            };
-        }
+        const locations = this.getLocationsList();
+        let loc = locations.find(l => l.id === locId) || locations[0];
 
         const body = document.getElementById('app-window-body');
         const title = document.getElementById('app-window-title');
@@ -70,23 +69,20 @@ const MapModule = {
 
         title.textContent = loc.name;
 
-        // Render Lisensi / Layanan SIM
         let licensesHtml = '';
         if (loc.licenses && loc.licenses.length > 0) {
             loc.licenses.forEach(licId => {
-                const lic = (window.LICENSES_DATABASE || []).find(l => l.id === licId) || { id: licId, name: licId, cost: 1500 };
-                const owned = (window.gameState?.user?.legal?.licenses || []).includes(lic.id);
-
+                const owned = (window.gameState?.user?.legal?.licenses || []).includes(licId);
                 licensesHtml += `
                     <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
                         <div>
-                            <h5 class="font-bold text-white text-[11px]">${lic.name}</h5>
-                            <span class="text-[9px] text-slate-400 font-mono">${lic.cost > 0 ? lic.cost.toLocaleString() + ' C' : 'Gratis'}</span>
+                            <h5 class="font-bold text-white text-[11px]">${licId}</h5>
+                            <span class="text-[9px] text-slate-400 font-mono">1.500 C</span>
                         </div>
                         ${owned ? `
-                            <span class="text-[9px] text-emerald-400 font-bold px-2 py-0.5 bg-emerald-500/20 rounded">Aktif / Dimiliki</span>
+                            <span class="text-[9px] text-emerald-400 font-bold px-2 py-0.5 bg-emerald-500/20 rounded">Dimiliki</span>
                         ` : `
-                            <button onclick="AdminModule.applyLicense('${lic.id}'); MapModule.openLocationDetail('${loc.id}');" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] rounded-lg shadow-md">
+                            <button onclick="AdminModule.applyLicense('${licId}'); MapModule.openLocationDetail('${loc.id}');" class="px-2.5 py-1 bg-sky-600 text-white font-bold text-[10px] rounded-lg shadow-md">
                                 Terbitkan
                             </button>
                         `}
@@ -95,18 +91,17 @@ const MapModule = {
             });
         }
 
-        // Render Barang Toko / Makanan
         let itemsHtml = '';
         if (loc.items && loc.items.length > 0) {
             loc.items.forEach(itemId => {
-                const item = (window.ITEMS_DATABASE || []).find(i => i.id === itemId) || { id: itemId, name: itemId, price: 500, desc: 'Barang minimarket' };
+                const item = (window.ITEMS_DATABASE || []).find(i => i.id === itemId) || { id: itemId, name: itemId, price: 500, desc: 'Barang toko' };
                 itemsHtml += `
                     <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs">
                         <div>
                             <h5 class="font-bold text-white text-[11px]">${item.name}</h5>
                             <p class="text-[9px] text-slate-400">${item.desc}</p>
                         </div>
-                        <button onclick="EconomyModule.buyItem('${item.id}', '${loc.id}')" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[10px] rounded-lg shadow-md">
+                        <button onclick="EconomyModule.buyItem('${item.id}', '${loc.id}')" class="px-2.5 py-1 bg-amber-500 text-slate-950 font-bold text-[10px] rounded-lg shadow-md">
                             Beli (${item.price.toLocaleString()} C)
                         </button>
                     </div>
@@ -131,14 +126,14 @@ const MapModule = {
 
                 ${licensesHtml ? `
                     <div class="space-y-2">
-                        <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">📜 Pengurusan SIM & Layanan</h4>
+                        <h4 class="text-xs font-bold text-sky-400 uppercase tracking-wider">📜 Layanan Dokumen & SIM</h4>
                         <div class="space-y-2">${licensesHtml}</div>
                     </div>
                 ` : ''}
 
                 ${itemsHtml ? `
                     <div class="space-y-2">
-                        <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">🛍️ Barang Toko & Makanan</h4>
+                        <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider">🛍️ Toko & Barang Dijual</h4>
                         <div class="space-y-2">${itemsHtml}</div>
                     </div>
                 ` : ''}
