@@ -1,11 +1,10 @@
 // ==========================================
-// ENGINE PERPESANAN REAL TELEGRAM SYNC V5 (MESSAGES.JS)
+// ENGINE PERPESANAN REALTIME SYNC V6 (MESSAGES.JS)
 // ==========================================
 
-// --- 1. TELEGRAM REAL USER CONNECTOR ---
 const TelegramUserBridge = {
-    // URL Backend Railway kamu
-    RAILWAY_BACKEND_URL: 'https://nama-app-lu.up.railway.app/api/send-telegram', 
+    // ⚠️ GANTI URL INI DENGAN DOMAIN RAILWAY ASLI LU
+    RAILWAY_API_URL: 'https://nama-app-lu.up.railway.app',
 
     getRealUser() {
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe?.user) {
@@ -23,10 +22,10 @@ const TelegramUserBridge = {
             };
         }
 
-        // Fallback testing lokal browser
+        // Fallback testing di browser laptop
         return {
-            userId: 'usr_me_real',
-            nik: 'TG-90128',
+            userId: '90128312', // ID Angka Default buat Test
+            nik: 'TG-90128312',
             telegramId: '@me_demo',
             name: 'Warga Real (Local)',
             avatar: 'https://ui-avatars.com/api/?name=Warga+Real&background=10b981&color=fff',
@@ -35,109 +34,136 @@ const TelegramUserBridge = {
     }
 };
 
-// --- 2. USER DIRECTORY & CONTACT MANAGEMENT ---
-const UserDirectoryModule = {
-    getUsers() {
-        if (!window.virtualUsers || !Array.isArray(window.virtualUsers)) {
-            window.virtualUsers = [];
-        }
-        return window.virtualUsers;
-    },
-
-    findUser(query) {
-        if (!query) return null;
-        let q = query.trim().toLowerCase();
-        const users = this.getUsers();
-        
-        return users.find(u => 
-            u.telegramId.toLowerCase() === q || 
-            u.nik.toLowerCase() === q || 
-            u.userId.toLowerCase() === q
-        ) || null;
-    }
-};
-
-// --- 3. MESSAGING SERVICE & RAILWAY RELAY ---
 const MessagingService = {
+    pollingTimer: null,
+    lastSyncTimestamp: 0,
+
     getConversationId(myId, targetId) {
         return 'conv_' + [String(myId), String(targetId)].sort().join('_');
     },
 
+    // KIRIM PESAN KE RAILWAY BACKEND
     async sendMessage({ sender, recipient, text, type = 'text', payload = null }) {
         if (!window.gameState.chats) window.gameState.chats = { conversations: {}, contacts: [] };
         
         const activeConvId = window.gameState.chats.activeConvId;
         const convId = activeConvId || this.getConversationId(sender.userId, recipient.userId);
-        const msgId = 'msg_' + Date.now() + '_' + Math.floor(1000 + Math.random() * 9000);
-
-        const message = {
-            id: msgId,
-            conversationId: convId,
-            senderId: sender.userId,
-            senderName: sender.name,
-            recipientId: recipient.userId,
-            recipientTelegramId: recipient.telegramId,
-            type: type,
-            text: text,
-            payload: payload,
-            createdAt: Date.now(),
-            status: 'sent'
-        };
-
         const chats = window.gameState.chats;
+
         if (!chats.conversations[convId]) {
             chats.conversations[convId] = {
                 id: convId,
                 participants: [sender.userId, recipient.userId],
                 messages: [],
-                unreadCount: 0,
                 lastMessageAt: Date.now()
             };
         }
 
-        // Push langsung ke memori chat aktif
-        chats.conversations[convId].messages.push(message);
-        chats.conversations[convId].lastMessageAt = Date.now();
-
-        if (typeof window.saveState === 'function') window.saveState();
-
-        // Kirim log ke backend Railway
-        this.dispatchToRailwayBackend(sender, recipient, text);
-
-        return message;
-    },
-
-    async dispatchToRailwayBackend(sender, recipient, text) {
+        // Tembak API Railway
         try {
-            // Ambil ID Angka Telegram murni
-            let cleanTgId = recipient.userId;
-            if (recipient.nik && recipient.nik.startsWith('TG-')) {
-                cleanTgId = recipient.nik.replace('TG-', '');
-            }
-
-            // Telegram API hanya bisa kirim ke ID angka murni
-            if (!cleanTgId || isNaN(cleanTgId)) {
-                console.warn('[TelegramBridge]: Pengiriman bot dilewati karena sasaran menggunakan @username, bukan ID Angka Telegram.');
-                return;
-            }
-
-            await fetch(TelegramUserBridge.RAILWAY_BACKEND_URL, {
+            const response = await fetch(`${TelegramUserBridge.RAILWAY_API_URL}/api/send-message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    recipientTgId: cleanTgId,
+                    senderId: sender.userId,
                     senderName: sender.name,
                     senderTag: sender.telegramId,
-                    text: text
+                    recipientId: recipient.userId,
+                    text: text,
+                    type: type,
+                    payload: payload
                 })
             });
+
+            const resData = await response.json();
+            if (resData.success && resData.data) {
+                // Simpan pesan yang tervalidasi server
+                chats.conversations[convId].messages.push(resData.data);
+                chats.conversations[convId].lastMessageAt = Date.now();
+                if (typeof window.saveState === 'function') window.saveState();
+            }
         } catch (err) {
-            console.warn('[Railway Relay Error]: Gagal menghubungkan ke backend Railway:', err);
+            console.warn('[Sync Error]: Gagal terhubung ke Railway backend, menyimpan offline:', err);
+            
+            // Fallback Simpan Lokal jika Backend offline
+            const offlineMsg = {
+                id: 'msg_off_' + Date.now(),
+                conversationId: convId,
+                senderId: sender.userId,
+                recipientId: recipient.userId,
+                text: text,
+                type: type,
+                createdAt: Date.now()
+            };
+            chats.conversations[convId].messages.push(offlineMsg);
         }
+    },
+
+    // POLLING ENGINE: AMBIL PESAN BARU DARI SERVER TIAP 3 DETIK
+    startPolling() {
+        if (this.pollingTimer) clearInterval(this.pollingTimer);
+
+        this.pollingTimer = setInterval(async () => {
+            const me = TelegramUserBridge.getRealUser();
+            if (!me || !me.userId) return;
+
+            try {
+                const response = await fetch(`${TelegramUserBridge.RAILWAY_API_URL}/api/messages/${me.userId}?since=${this.lastSyncTimestamp}`);
+                const data = await response.json();
+
+                if (data.success && Array.isArray(data.messages) && data.messages.length > 0) {
+                    let hasNewIncoming = false;
+
+                    data.messages.forEach(msg => {
+                        const convId = this.getConversationId(msg.senderId, msg.recipientId);
+                        const chats = window.gameState.chats;
+
+                        if (!chats.conversations[convId]) {
+                            chats.conversations[convId] = {
+                                id: convId,
+                                participants: [msg.senderId, msg.recipientId],
+                                messages: [],
+                                lastMessageAt: msg.createdAt
+                            };
+                        }
+
+                        // Cek jika pesan belum ada di memori lokal
+                        const exists = chats.conversations[convId].messages.some(m => m.id === msg.id);
+                        if (!exists) {
+                            chats.conversations[convId].messages.push(msg);
+                            chats.conversations[convId].lastMessageAt = msg.createdAt;
+
+                            // Jika pesan dari orang lain, beri notifikasi
+                            if (String(msg.senderId) !== String(me.userId)) {
+                                hasNewIncoming = true;
+                                if (typeof window.showIOSNotification === 'function') {
+                                    window.showIOSNotification(msg.senderName || 'Pesan Masuk', msg.text, 'Igna Talk', 'fa-comment');
+                                }
+                            }
+                        }
+
+                        if (msg.createdAt > this.lastSyncTimestamp) {
+                            this.lastSyncTimestamp = msg.createdAt;
+                        }
+                    });
+
+                    if (hasNewIncoming) {
+                        if (typeof playAudioSfx === 'function') playAudioSfx('keypad');
+                        if (typeof window.saveState === 'function') window.saveState();
+                        
+                        // Re-render UI jika sedang membuka aplikasi pesan
+                        if (document.getElementById('chat-input-msg') || chats.activeConvId) {
+                            if (typeof openApp === 'function') openApp('messages');
+                        }
+                    }
+                }
+            } catch (err) {
+                // Silent fail jika koneksi terputus saat polling
+            }
+        }, 3000);
     }
 };
 
-// --- 4. MESSAGES MODULE (UI & CONTROLLER) ---
 const MessagesModule = {
     searchQuery: '',
 
@@ -169,18 +195,24 @@ const MessagesModule = {
         if (!Array.isArray(window.gameState.chats.contacts)) {
             window.gameState.chats.contacts = [];
         }
+
+        // Jalankan Realtime Polling Engine
+        MessagingService.startPolling();
     },
 
-    // FITUR TAMBAH KONTAK
+    // TAMBAH KONTAK (WAJIB ID ANGKA TELEGRAM AGAR BISA CHAT)
     addContactPrompt() {
         this.initChats();
         const me = TelegramUserBridge.getRealUser();
-        const query = prompt("Masukkan ID Angka Telegram (Misal: 12345678) atau Username (@username):");
+        const query = prompt("Masukkan Telegram User ID Angka (Misal: 81920391):\n(Minta kontak kamu cek ID mereka via @userinfobot di Telegram)");
         if (!query || !query.trim()) return;
 
-        const cleanQuery = query.trim();
-        const isNumeric = !isNaN(cleanQuery) || !isNaN(cleanQuery.replace('TG-', ''));
-        const cleanId = cleanQuery.replace('TG-', '').replace('@', '');
+        const cleanId = query.trim().replace('TG-', '').replace('@', '');
+
+        if (isNaN(cleanId)) {
+            if (typeof showToast === 'function') showToast('Format salah! Harus berupa ID Angka Telegram (misal: 12345678).', 'error');
+            return;
+        }
 
         if (String(cleanId) === String(me.userId)) {
             if (typeof showToast === 'function') showToast('Kamu tidak bisa menambah ID kamu sendiri!', 'error');
@@ -190,51 +222,44 @@ const MessagesModule = {
         const targetUser = {
             userId: cleanId,
             nik: `TG-${cleanId}`,
-            telegramId: isNumeric ? `ID: ${cleanId}` : `@${cleanId}`,
-            name: isNumeric ? `Warga (${cleanId})` : cleanQuery,
-            avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanQuery)}&background=0284c7&color=fff`,
+            telegramId: `ID: ${cleanId}`,
+            name: `Warga (${cleanId})`,
+            avatar: `https://ui-avatars.com/api/?name=${cleanId}&background=0284c7&color=fff`,
             isRealTelegram: true
         };
 
         const existingIndex = window.gameState.chats.contacts.findIndex(c => c.userId === targetUser.userId);
         if (existingIndex === -1) {
             window.gameState.chats.contacts.push(targetUser);
-        } else {
-            window.gameState.chats.contacts[existingIndex] = targetUser;
         }
 
         const convId = MessagingService.getConversationId(me.userId, targetUser.userId);
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Kontak ${targetUser.name} Berhasil Ditambahkan!`, 'success');
+        if (typeof showToast === 'function') showToast(`Kontak Telegram (${cleanId}) Ditambahkan!`, 'success');
         
         this.openChatRoom(convId);
     },
 
-    // FITUR HAPUS KONTAK & CHAT
     deleteContact(userId) {
         this.initChats();
-        const confirmDelete = confirm("Apakah kamu yakin ingin menghapus kontak ini dan seluruh riwayat chat-nya?");
+        const confirmDelete = confirm("Hapus kontak ini beserta riwayat obrolannya?");
         if (!confirmDelete) return;
 
         const me = TelegramUserBridge.getRealUser();
         const chats = window.gameState.chats;
 
-        // 1. Hapus dari daftar kontak
         chats.contacts = chats.contacts.filter(c => c.userId !== userId);
-
-        // 2. Hapus dari riwayat percakapan
         const convId = MessagingService.getConversationId(me.userId, userId);
         if (chats.conversations[convId]) {
             delete chats.conversations[convId];
         }
 
-        // Reset jika sedang membuka ruang chat ini
         if (chats.activeConvId === convId) {
             chats.activeConvId = null;
         }
 
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast('Kontak dan pesan berhasil dihapus!', 'info');
+        if (typeof showToast === 'function') showToast('Kontak berhasil dihapus!', 'info');
         
         openApp('messages');
     },
@@ -272,7 +297,7 @@ const MessagesModule = {
         let targetUser = window.gameState.chats.contacts.find(c => c.userId === targetUserId) || {
             userId: targetUserId,
             nik: `TG-${targetUserId}`,
-            telegramId: `@user_${targetUserId}`,
+            telegramId: `ID: ${targetUserId}`,
             name: `Warga (${targetUserId})`
         };
 
@@ -367,7 +392,6 @@ const MessagesModule = {
 
             return `
                 <div class="flex flex-col h-full justify-between space-y-3 pt-1">
-                    <!-- HEADER CHAT DENGAN TOMBOL HAPUS KONTAK -->
                     <div class="glass-ios p-3 rounded-2xl border border-emerald-500/30 flex items-center justify-between shrink-0 shadow-lg">
                         <div class="flex items-center gap-2.5">
                             <button onclick="MessagesModule.closeChatRoom()" class="text-xs text-sky-400 font-bold flex items-center gap-1 pr-1 active:scale-95">
@@ -390,12 +414,10 @@ const MessagesModule = {
                         </div>
                     </div>
 
-                    <!-- AREA RUANG PESAN -->
                     <div class="flex-1 overflow-y-auto space-y-2.5 p-1 max-h-[280px]">
                         ${msgsHtml || '<p class="text-[10px] text-slate-500 text-center py-8">Belum ada obrolan. Ketik pesan di bawah!</p>'}
                     </div>
 
-                    <!-- INPUT PESAN -->
                     <div class="flex gap-2 pt-1 border-t border-white/10 shrink-0">
                         <input type="text" id="chat-input-msg" onkeydown="if(event.key==='Enter') MessagesModule.sendMessage()" 
                                placeholder="Ketik pesan..." 
@@ -408,7 +430,7 @@ const MessagesModule = {
             `;
         }
 
-        // 2. DAFTAR KONTAK & CHAT
+        // 2. DAFTAR KONTAK
         let contactsHtml = '';
         const filteredList = contacts.filter(c => 
             !this.searchQuery || 
@@ -421,7 +443,7 @@ const MessagesModule = {
                 <div class="glass-card p-6 rounded-2xl text-center space-y-2">
                     <p class="text-[10px] text-slate-400">Belum ada kontak terhubung.</p>
                     <button onclick="MessagesModule.addContactPrompt()" class="px-3 py-1.5 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-md">
-                        + Tambah Kontak Telegram
+                        + Tambah Telegram User ID
                     </button>
                 </div>
             `;
@@ -469,14 +491,14 @@ const MessagesModule = {
                             <h4 class="text-xs font-bold text-white">${this.escapeHTML(me.name)} (${this.escapeHTML(me.telegramId)})</h4>
                         </div>
                         <button onclick="MessagesModule.addContactPrompt()" class="px-2.5 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-[10px] rounded-xl shadow-md flex items-center gap-1 transition-all active:scale-95">
-                            <i class="fa-solid fa-user-plus text-[9px]"></i> + Tambah
+                            <i class="fa-solid fa-user-plus text-[9px]"></i> + Tambah ID
                         </button>
                     </div>
                 </div>
 
                 <div class="relative">
                     <input type="text" value="${this.searchQuery}" oninput="MessagesModule.searchQuery = this.value; if(typeof openApp==='function') openApp('messages');" 
-                           placeholder="🔍 Cari kontak atau obrolan..." 
+                           placeholder="🔍 Cari kontak..." 
                            class="w-full px-4 py-2 bg-slate-900/90 border border-white/15 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 font-medium">
                 </div>
 
@@ -494,6 +516,5 @@ const MessagesModule = {
 MessagesModule.initChats();
 
 window.TelegramUserBridge = TelegramUserBridge;
-window.UserDirectoryModule = UserDirectoryModule;
 window.MessagingService = MessagingService;
 window.MessagesModule = MessagesModule;
