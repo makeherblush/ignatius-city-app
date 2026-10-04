@@ -544,6 +544,8 @@ button,input,select{
                     </div>
                 </div>
 
+                <div id="ios-lock-notifications" aria-live="polite"></div>
+
                 <div onclick="openPasscodeKeypad()" class="text-center pb-6">
                     <p class="text-[11px] font-medium text-slate-300 tracking-wider flex items-center justify-center gap-1 animate-bounce">
                         <i class="fa-solid fa-chevron-up text-[10px]"></i>
@@ -642,6 +644,162 @@ button,input,select{
         </div>
 
     </div>
+
+
+<script id="ios-v2-controller">
+(function(){
+  "use strict";
+
+  const chassis = document.getElementById("iphone-chassis");
+  const island = chassis && chassis.querySelector(".absolute.top-0 > div:nth-child(2)");
+  const toast = document.getElementById("toast-ios");
+  const toastMsg = document.getElementById("toast-ios-msg");
+  const toastIcon = document.getElementById("toast-ios-icon");
+  const lockStack = document.getElementById("ios-lock-notifications");
+
+  if (!chassis || !island) return;
+
+  /* ---------- Dynamic Island ---------- */
+  let islandTimer = null;
+
+  function expandIsland(message, iconClass){
+    const label = island.querySelector("span");
+    const icon = island.querySelector("#island-lock-icon");
+
+    if (label) {
+      label.textContent = message || "Ignatius OS";
+      label.style.fontSize = "10px";
+      label.style.color = "#fff";
+    }
+
+    if (iconClass && icon) {
+      icon.className = "fa-solid " + iconClass;
+      icon.style.color = "#0a84ff";
+    }
+
+    chassis.classList.add("dynamic-island-expanded");
+
+    clearTimeout(islandTimer);
+    islandTimer = setTimeout(function(){
+      chassis.classList.remove("dynamic-island-expanded");
+      if (label) {
+        label.textContent = "IGNATIUS OS";
+        label.style.fontSize = "";
+        label.style.color = "";
+      }
+      if (icon) {
+        icon.className = "fa-solid fa-lock";
+        icon.style.color = "";
+      }
+    }, 3400);
+  }
+
+  window.ignatiusDynamicIsland = expandIsland;
+
+  /* ---------- iPhone-style Lock Screen Notification ---------- */
+  function nowText(){
+    const d = new Date();
+    return d.toLocaleTimeString("id-ID", {
+      hour:"2-digit",
+      minute:"2-digit",
+      hour12:false
+    });
+  }
+
+  function addLockNotification(title, body, appName, iconClass){
+    if (!lockStack) return;
+
+    const item = document.createElement("div");
+    item.className = "ios-lock-notification";
+
+    const safeTitle = String(title || "Notifikasi");
+    const safeBody = String(body || "");
+    const safeApp = String(appName || "Ignatius OS");
+
+    item.innerHTML =
+      '<div class="ios-lock-notification-header">' +
+        '<div class="ios-lock-notification-icon"><i class="fa-solid ' +
+          (iconClass || "fa-bell") + '"></i></div>' +
+        '<span class="ios-lock-notification-app"></span>' +
+        '<span class="ios-lock-notification-time"></span>' +
+      '</div>' +
+      '<div class="ios-lock-notification-title"></div>' +
+      '<div class="ios-lock-notification-body"></div>';
+
+    item.querySelector(".ios-lock-notification-app").textContent = safeApp;
+    item.querySelector(".ios-lock-notification-time").textContent = nowText();
+    item.querySelector(".ios-lock-notification-title").textContent = safeTitle;
+    item.querySelector(".ios-lock-notification-body").textContent = safeBody;
+
+    lockStack.prepend(item);
+
+    /* iOS-like stack: keep newest three */
+    while (lockStack.children.length > 3) {
+      lockStack.lastElementChild.remove();
+    }
+
+    expandIsland(safeApp, iconClass || "fa-bell");
+  }
+
+  window.ignatiusLockNotification = addLockNotification;
+
+  /* ---------- Bridge existing toast notifications ---------- */
+  let lastText = "";
+  let lastSeen = 0;
+
+  function mirrorToast(){
+    if (!toast || !toastMsg) return;
+
+    const text = (toastMsg.textContent || "").trim();
+    const visible = getComputedStyle(toast).opacity !== "0";
+
+    if (!visible || !text || text === "Pesan Notifikasi") return;
+
+    const stamp = Date.now();
+    if (text === lastText && stamp - lastSeen < 1800) return;
+
+    lastText = text;
+    lastSeen = stamp;
+
+    let app = "Ignatius OS";
+    let title = text;
+    let body = "";
+
+    /* Split common "Title: body" notifications without changing source data. */
+    const colon = text.indexOf(":");
+    if (colon > 0 && colon < 42) {
+      app = text.slice(0, colon).trim() || app;
+      body = text.slice(colon + 1).trim();
+      title = app;
+    }
+
+    addLockNotification(title, body, app, "fa-bell");
+  }
+
+  if (toast) {
+    const observer = new MutationObserver(function(){
+      window.requestAnimationFrame(mirrorToast);
+    });
+    observer.observe(toast, {
+      subtree:true,
+      childList:true,
+      characterData:true,
+      attributes:true,
+      attributeFilter:["class","style"]
+    });
+  }
+
+  /* Expose a generic notification bridge for existing/new modules.
+     Existing feature calls remain untouched. */
+  window.showIOSNotification = function(title, body, appName, iconClass){
+    addLockNotification(title, body, appName, iconClass);
+  };
+
+  /* Initial compact island state */
+  const label = island.querySelector("span");
+  if (label) label.textContent = "IGNATIUS OS";
+})();
+</script>
 
     <!-- SCRIPT LOADER -->
     <script src="src/database.js"></script>
