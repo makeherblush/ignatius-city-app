@@ -1,73 +1,73 @@
-// ==========================================
-// RAILWAY BACKEND SERVER (SERVER.JS)
-// ==========================================
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
-
 const app = express();
-app.use(cors());
+
 app.use(express.json());
+app.use(cors());
 
-// Database In-Memory Pesan (Bisa ditingkatkan ke PostgreSQL / Redis)
-const messageStore = [];
+// Serve Static Files (Frontend Virtual Phone di folder 'public')
+app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. ENDPOINT: KIRIM PESAN DARI WEBAPP A
+// Database memori server berdasarkan NIK
+// Struktur: { "TG-12345": [ { id, senderNik, senderName, text, createdAt, read } ] }
+const messageDatabase = {};
+
+// 1. Endpoint Kirim Pesan Antar NIK
 app.post('/api/send-message', async (req, res) => {
-    const { senderId, senderName, senderTag, recipientId, text, type, payload } = req.body;
+    const { recipientNik, senderNik, senderName, senderTag, text } = req.body;
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
-    if (!senderId || !recipientId || !text) {
-        return res.status(400).json({ success: false, message: 'Parameter tidak lengkap!' });
+    if (!recipientNik || !senderNik || !text) {
+        return res.status(400).json({ error: 'Missing required parameters (recipientNik, senderNik, text)' });
     }
 
-    const messageObj = {
+    const newMessage = {
         id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-        senderId: String(senderId),
-        senderName: senderName || 'Warga',
-        senderTag: senderTag || '@warga',
-        recipientId: String(recipientId),
+        senderNik: String(senderNik),
+        recipientNik: String(recipientNik),
+        senderName: senderName || 'Warga Kota',
+        senderTag: senderTag || '@citizen',
         text: text,
-        type: type || 'text',
-        payload: payload || null,
         createdAt: Date.now(),
         read: false
     };
 
-    // Simpan ke database server
-    messageStore.push(messageObj);
-
-    // Kirim Notifikasi Telegram Bot jika recipientId adalah ID Angka murni
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (botToken && !isNaN(recipientId)) {
-        try {
-            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: recipientId,
-                    text: `💬 *Pesan Baru dari ${senderName} (${senderTag})*:\n\n"${text}"\n\n_Buka Virtual Phone WebApp untuk membalas._`,
-                    parse_mode: 'Markdown'
-                })
-            });
-        } catch (err) {
-            console.warn('[Bot Error]: Gagal mengirim notifikasi bot:', err.message);
-        }
+    // Simpan ke database memori server berdasarkan NIK penerima
+    if (!messageDatabase[recipientNik]) {
+        messageDatabase[recipientNik] = [];
     }
+    messageDatabase[recipientNik].push(newMessage);
 
-    return res.json({ success: true, data: messageObj });
+    // Opsional: Jika user punya Telegram ID asli yang terikat ke NIK, bisa diteruskan ke bot
+    // Tapi untuk komunikasi antar virtual phone di satu web, ini sudah masuk ke database NIK.
+
+    return res.json({ success: true, data: newMessage });
 });
 
-// 2. ENDPOINT: POLLING PESAN UNTUK WEBAPP B (FETCH INBOX)
-app.get('/api/messages/:userId', (req, res) => {
-    const userId = String(req.params.userId);
-    const since = parseInt(req.query.since) || 0;
+// 2. Endpoint Tarik Pesan Berdasarkan NIK (Polling oleh WebApp)
+app.get('/api/messages/:nik', (req, res) => {
+    const nik = req.params.nik;
+    const messages = messageDatabase[nik] || [];
+    return res.json({ success: true, messages });
+});
 
-    // Filter pesan yang ditujukan untuk userId ini dan dibuat setelah timestamp 'since'
-    const userMessages = messageStore.filter(m => 
-        (m.recipientId === userId || m.senderId === userId) && m.createdAt > since
-    );
+// 3. Endpoint Tandai Pesan Sudah Dibaca
+app.post('/api/messages/read', (req, res) => {
+    const { nik, messageId } = req.body;
+    if (messageDatabase[nik]) {
+        const msg = messageDatabase[nik].find(m => m.id === messageId);
+        if (msg) msg.read = true;
+    }
+    return res.json({ success: true });
+});
 
-    return res.json({ success: true, messages: userMessages });
+// Fallback route untuk SPA (Single Page Application) agar tidak 404
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server Railway aktif di port ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Ignatius City Core running on port ${PORT}`);
+});
