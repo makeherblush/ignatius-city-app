@@ -1,5 +1,5 @@
 // ==========================================
-// RAILWAY BACKEND SERVER (SERVER.JS) - NIK BASED
+// RAILWAY BACKEND SERVER (SERVER.JS) - SECURE ENV
 // ==========================================
 const express = require('express');
 const cors = require('cors');
@@ -8,10 +8,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Memory Database Pesan
+// Menggunakan variabel lingkungan dari Railway
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const PORT = process.env.PORT || 3000;
+
+// Memory Store Pesan
 const messageStore = [];
 
-// 1. ENDPOINT: KIRIM PESAN DENGAN NIK
 app.post('/api/send-message', async (req, res) => {
     const { senderNik, senderName, recipientNik, text, type, payload } = req.body;
 
@@ -20,7 +23,7 @@ app.post('/api/send-message', async (req, res) => {
     }
 
     const messageObj = {
-        id: 'msg_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        id: `msg_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
         senderNik: String(senderNik).trim(),
         senderName: senderName || 'Warga',
         recipientNik: String(recipientNik).trim(),
@@ -33,13 +36,12 @@ app.post('/api/send-message', async (req, res) => {
 
     messageStore.push(messageObj);
 
-    // Meneruskan Notifikasi Bot jika NIK mengandung ID Telegram (misal TG-81920391 atau ID angka)
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const cleanTgId = String(recipientNik).replace('TG-', '').trim();
 
-    if (botToken && !isNaN(cleanTgId) && cleanTgId.length >= 5) {
+    // Jalankan pengiriman bot hanya jika variabel BOT_TOKEN terpasang di env
+    if (BOT_TOKEN && !isNaN(cleanTgId) && cleanTgId.length >= 5) {
         try {
-            await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -56,7 +58,6 @@ app.post('/api/send-message', async (req, res) => {
     return res.json({ success: true, data: messageObj });
 });
 
-// 2. ENDPOINT: POLLING PESAN BERBASIS NIK
 app.get('/api/messages/:nik', (req, res) => {
     const userNik = String(req.params.nik).trim();
     const since = parseInt(req.query.since) || 0;
@@ -68,5 +69,4 @@ app.get('/api/messages/:nik', (req, res) => {
     return res.json({ success: true, messages: userMessages });
 });
 
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server NIK Messaging aktif di port ${PORT}`));
