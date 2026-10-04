@@ -1,5 +1,6 @@
 // ==========================================
-// ENGINE PERPESANAN WEBSOCKET REALTIME (MESSAGES.JS)
+// ENGINE PERPESANAN WEBSOCKET REALTIME V7 (MESSAGES.JS)
+// MATCH 1:1 PROTOCOL WITH RAILWAY BACKEND
 // ==========================================
 
 const TelegramUserBridge = {
@@ -9,17 +10,27 @@ const TelegramUserBridge = {
 
     getRealUser() {
         const identity = window.gameState?.user?.identity || {};
-        let myNik = identity.nik || 'TG-320199201';
+        let myNik = identity.nik || '3273010410980001';
+
+        let tgUsername = '';
+        let tgId = '';
 
         if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe?.user) {
             const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
-            myNik = `TG-${tgUser.id}`;
+            tgId = String(tgUser.id);
+            tgUsername = tgUser.username ? `@${tgUser.username}` : `id_${tgUser.id}`;
+            
+            // Jika NIK belum diset di game state, pakaikan format TG-ID
+            if (!identity.nik) {
+                myNik = `TG-${tgUser.id}`;
+            }
         }
 
         const fullName = identity.fullName || (window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || 'Warga');
 
         return {
             nik: String(myNik).trim(),
+            telegramId: tgId || tgUsername,
             name: fullName,
             avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=0284c7&color=fff`
         };
@@ -34,13 +45,12 @@ const MessagingService = {
         return 'conv_' + [String(nikA).trim(), String(nikB).trim()].sort().join('_');
     },
 
-    // INISIALISASI KONEKSI WEBSOCKET INSTAN
     initSocket() {
         if (this.socket) return;
 
         const baseUrl = TelegramUserBridge.getApiUrl();
         if (typeof io === 'undefined') {
-            console.error('[SocketError]: SDK Socket.io belum di-load di index.html!');
+            console.error('[SocketError]: SDK Socket.io client belum di-load di index.html!');
             return;
         }
 
@@ -51,32 +61,65 @@ const MessagingService = {
 
         const me = TelegramUserBridge.getRealUser();
 
-        // 1. Register NIK ke server setelah terkoneksi
+        // 1. REGISTRASI IDENTITAS LENGKAP KE SERVER
         this.socket.on('connect', () => {
-            this.socket.emit('register_user', me.nik);
+            this.socket.emit('register_user', {
+                nik: me.nik,
+                telegramId: me.telegramId,
+                name: me.name,
+                avatar: me.avatar
+            });
         });
 
-        // 2. Menerima Pesan Real-Time Masuk
+        // 2. TERIMA PESAN REALTIME MASUK
         this.socket.on('receive_message', (msg) => {
             this.handleIncomingMessage(msg);
         });
 
-        // 3. Konfirmasi Pesan Terkirim
+        // 3. KONFIRMASI PESAN TERKIRIM
         this.socket.on('message_sent_confirm', (msg) => {
             this.saveMessageToLocal(msg);
+            if (typeof openApp === 'function') openApp('messages');
         });
 
-        // 4. Update Daftar User Online Live
+        // 4. TERIMA PESAN OFFLINE YANG TERTUNDA
+        this.socket.on('pending_messages', (pendingMsgs) => {
+            if (Array.isArray(pendingMsgs)) {
+                pendingMsgs.forEach(m => this.saveMessageToLocal(m));
+                if (typeof showToast === 'function') {
+                    showToast(`Menerima ${pendingMsgs.length} pesan offline baru!`, 'info');
+                }
+                if (typeof openApp === 'function') openApp('messages');
+            }
+        });
+
+        // 5. RECEIVE AUTOMATIC CONTACT ADDED FROM OTHER USER
+        this.socket.on('contact_added', (contactData) => {
+            if (!window.gameState.chats) window.gameState.chats = { conversations: {}, contacts: [] };
+            const contacts = window.gameState.chats.contacts;
+            const exists = contacts.some(c => c.nik === contactData.nik);
+            
+            if (!exists) {
+                contacts.push({
+                    nik: contactData.nik,
+                    name: contactData.name,
+                    avatar: contactData.avatar
+                });
+                if (typeof window.saveState === 'function') window.saveState();
+                if (typeof showToast === 'function') showToast(`Kontak baru ${contactData.name} ditambahkan otomatis!`, 'success');
+                if (typeof openApp === 'function') openApp('messages');
+            }
+        });
+
+        // 6. UPDATE DAFTAR USER ONLINE
         this.socket.on('online_users_list', (usersArray) => {
             this.onlineUsersSet = new Set(usersArray);
             if (typeof openApp === 'function' && window.gameState?.chats?.activeConvId === null) {
-                // Re-render UI list kontak untuk update titik hijau online
                 openApp('messages');
             }
         });
     },
 
-    // OLah Pesan Masuk dari Socket
     handleIncomingMessage(msg) {
         this.saveMessageToLocal(msg);
 
@@ -94,7 +137,7 @@ const MessagingService = {
     saveMessageToLocal(msg) {
         if (!window.gameState.chats) window.gameState.chats = { conversations: {}, contacts: [] };
         
-        const convId = this.getConversationId(msg.senderNik, msg.recipientNik);
+        const convId = msg.conversationId || this.getConversationId(msg.senderNik, msg.recipientNik);
         const chats = window.gameState.chats;
 
         if (!chats.conversations[convId]) {
@@ -114,7 +157,6 @@ const MessagingService = {
         }
     },
 
-    // KIRIM PESAN VIA SOCKET
     sendMessage({ senderNik, senderName, recipientNik, text, type = 'text', payload = null }) {
         if (!this.socket) this.initSocket();
 
@@ -125,6 +167,18 @@ const MessagingService = {
             text,
             type,
             payload
+        });
+    },
+
+    addContactServer(targetNik) {
+        if (!this.socket) this.initSocket();
+        const me = TelegramUserBridge.getRealUser();
+
+        this.socket.emit('add_contact', {
+            senderNik: me.nik,
+            senderName: me.name,
+            senderAvatar: me.avatar,
+            targetNik: targetNik
         });
     },
 
@@ -165,14 +219,13 @@ const MessagesModule = {
             window.gameState.chats.contacts = [];
         }
 
-        // Aktifkan Socket Connection
         MessagingService.initSocket();
     },
 
     addContactPrompt() {
         this.initChats();
         const me = TelegramUserBridge.getRealUser();
-        const targetNik = prompt("Masukkan NIK Warga Target:");
+        const targetNik = prompt("Masukkan NIK / Telegram ID Warga Target:");
         if (!targetNik || !targetNik.trim()) return;
 
         const cleanNik = targetNik.trim();
@@ -197,9 +250,12 @@ const MessagesModule = {
             window.gameState.chats.contacts[existingIndex] = targetUser;
         }
 
+        // Sinkronkan ke server agar kontak terhubung di dua sisi
+        MessagingService.addContactServer(cleanNik);
+
         const convId = MessagingService.getConversationId(me.nik, cleanNik);
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Kontak NIK ${cleanNik} Ditambahkan!`, 'success');
+        if (typeof showToast === 'function') showToast(`Kontak ${namePrompt} Ditambahkan!`, 'success');
         
         this.openChatRoom(convId);
     },
@@ -453,7 +509,7 @@ const MessagesModule = {
                     <div class="flex items-center justify-between">
                         <div>
                             <span class="text-[8px] text-sky-400 font-mono uppercase font-bold block flex items-center gap-1">
-                                <i class="fa-solid fa-wifi text-emerald-400 animate-pulse"></i> REALTIME SOCKET MESSAGING
+                                <i class="fa-solid fa-wifi text-emerald-400 animate-pulse"></i> REALTIME SOCKET MESSAGING V7
                             </span>
                             <h4 class="text-xs font-bold text-white">${this.escapeHTML(me.name)} (NIK: ${this.escapeHTML(me.nik)})</h4>
                         </div>
