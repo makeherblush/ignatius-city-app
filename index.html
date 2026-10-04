@@ -130,7 +130,7 @@
             background-size: cover !important;
             background-position: center !important;
             background-repeat: no-repeat !important;
-            transition: background 0.4s var(--ios-ease);
+            transition: background 0.35s var(--ios-ease);
         }
 
         /* --- 1. PASSCODE SCREEN --- */
@@ -631,17 +631,6 @@
                         </div>
                     </div>
 
-                    <!-- PENGATURAN TEMA QUICK SELECTOR BUTTON -->
-                    <div class="glass-ios p-2.5 rounded-2xl flex items-center justify-between border border-white/15">
-                        <div class="flex items-center gap-2 text-xs font-bold text-white">
-                            <i class="fa-solid fa-palette text-pink-400"></i>
-                            <span>Tema Wallpaper</span>
-                        </div>
-                        <button onclick="toggleThemeModal()" class="px-3 py-1 bg-white/15 hover:bg-white/25 active:scale-95 text-xs text-white font-semibold rounded-xl backdrop-blur-md transition-all border border-white/20">
-                            Pilih Tema
-                        </button>
-                    </div>
-
                     <div id="homescreen-app-grid" class="grid grid-cols-4 gap-4 px-1 pt-1"></div>
                 </div>
 
@@ -667,27 +656,6 @@
                 <div id="app-window-body" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
             </div>
 
-            <!-- 6. THEME SELECTION MODAL -->
-            <div id="modal-theme-picker" class="absolute inset-0 z-50 bg-black/80 backdrop-blur-xl p-6 flex flex-col justify-between hidden">
-                <div class="space-y-4 pt-10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-lg font-bold text-white tracking-tight">Pilih Tema & Warna</h3>
-                            <p class="text-xs text-slate-400">Ganti gaya tampilan sesuai seleramu</p>
-                        </div>
-                        <button onclick="toggleThemeModal()" class="w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center text-sm hover:bg-white/20 transition-all">✕</button>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 max-h-[500px] overflow-y-auto p-1" id="theme-card-container">
-                        <!-- Swatches injected via JS -->
-                    </div>
-                </div>
-
-                <button onclick="toggleThemeModal()" class="w-full py-3.5 bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs rounded-2xl shadow-lg shadow-sky-500/25 active:scale-95 transition-all">
-                    Selesai
-                </button>
-            </div>
-
         </div>
 
         <!-- HOME BAR -->
@@ -708,62 +676,36 @@
       const toastMsg = document.getElementById("toast-ios-msg");
       const lockStack = document.getElementById("ios-lock-notifications");
       const notiHeader = document.getElementById("ios-notification-center-header");
-      const themeModal = document.getElementById("modal-theme-picker");
-      const themeContainer = document.getElementById("theme-card-container");
+      const appBody = document.getElementById("app-window-body");
 
       if (!chassis || !island) return;
 
-      /* ---------- 1. PRESET THEMES DATABASE ---------- */
+      /* ---------- 1. COMPLETE THEMES & PRESET DATABASE ---------- */
       const PRESET_THEMES = {
-        'pink': {
-          name: 'Pink Aesthetic',
-          bg: 'linear-gradient(135deg, rgba(255,154,162,0.85), rgba(255,183,178,0.85)), linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #feada6 100%)',
-          preview: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #feada6 100%)',
-          color: '#ff9a9e'
-        },
-        'abu': {
-          name: 'Minimal Gray',
-          bg: 'linear-gradient(135deg, rgba(30,35,45,0.7), rgba(15,18,25,0.9)), linear-gradient(135deg, #434343 0%, #000000 100%)',
-          preview: 'linear-gradient(135deg, #434343 0%, #000000 100%)',
-          color: '#888888'
-        },
-        'sunset': {
-          name: 'Sunset Amber',
-          bg: 'linear-gradient(135deg, rgba(255,126,95,0.75), rgba(254,180,123,0.85)), linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)',
-          preview: 'linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%)',
-          color: '#ff7e5f'
-        },
-        'emerald': {
-          name: 'Emerald Deep',
-          bg: 'linear-gradient(135deg, rgba(5,150,105,0.75), rgba(6,78,59,0.9)), linear-gradient(135deg, #059669 0%, #064e3b 100%)',
-          preview: 'linear-gradient(135deg, #059669 0%, #064e3b 100%)',
-          color: '#059669'
-        },
-        'cyber': {
-          name: 'Cyber Neon',
-          bg: 'linear-gradient(135deg, rgba(138,35,135,0.8), rgba(233,64,87,0.8)), linear-gradient(135deg, #8a2387 0%, #e94057 50%, #f27121 100%)',
-          preview: 'linear-gradient(135deg, #8a2387 0%, #e94057 50%, #f27121 100%)',
-          color: '#e94057'
-        },
-        'classic': {
-          name: 'iOS Classic',
-          bg: "linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,0.72)), url('assets/images/wallpaper.png'), linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
-          preview: 'linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%)',
-          color: '#38bdf8'
-        }
+        'default ios': "linear-gradient(to bottom, rgba(0,0,0,0.25), rgba(0,0,0,0.72)), url('assets/images/wallpaper.png'), linear-gradient(135deg, #0f2027, #203a43, #2c5364)",
+        'cyber city': "linear-gradient(to bottom, rgba(15,5,30,0.4), rgba(0,0,0,0.85)), linear-gradient(135deg, #2b1055, #7597de)",
+        'sunset beach': "linear-gradient(to bottom, rgba(30,10,0,0.3), rgba(0,0,0,0.85)), linear-gradient(135deg, #ff7e5f, #feb47b)",
+        'neon dark': "linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0.9)), linear-gradient(135deg, #111111, #0d1b2a, #1b263b)",
+        'nature fog': "linear-gradient(to bottom, rgba(0,20,10,0.3), rgba(0,0,0,0.85)), linear-gradient(135deg, #283e51, #4b6cb7)",
+        'mountain': "linear-gradient(to bottom, rgba(10,15,25,0.3), rgba(0,0,0,0.85)), linear-gradient(135deg, #3a6073, #3a7bd5)",
+        'pink': "linear-gradient(to bottom, rgba(40,10,25,0.35), rgba(0,0,0,0.85)), linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #feada6 100%)",
+        'pink aesthetic': "linear-gradient(to bottom, rgba(40,10,25,0.35), rgba(0,0,0,0.85)), linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #feada6 100%)",
+        'abu': "linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.88)), linear-gradient(135deg, #434343 0%, #000000 100%)",
+        'minimal gray': "linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.88)), linear-gradient(135deg, #434343 0%, #000000 100%)",
+        'emerald': "linear-gradient(to bottom, rgba(0,25,10,0.4), rgba(0,0,0,0.88)), linear-gradient(135deg, #059669 0%, #064e3b 100%)"
       };
 
-      /* ---------- 2. DYNAMIC WALLPAPER CONTROLLER ---------- */
+      /* ---------- 2. DYNAMIC WALLPAPER ENGINE ---------- */
       window.setIOSWallpaper = function(themeKeyOrUrl) {
         if (!themeKeyOrUrl) return;
 
+        const cleanKey = String(themeKeyOrUrl).trim().toLowerCase();
         let finalBg = '';
-        let targetKey = themeKeyOrUrl;
 
-        if (PRESET_THEMES[themeKeyOrUrl]) {
-          finalBg = PRESET_THEMES[themeKeyOrUrl].bg;
+        if (PRESET_THEMES[cleanKey]) {
+          finalBg = PRESET_THEMES[cleanKey];
         } else {
-          let cleanUrl = themeKeyOrUrl.trim();
+          let cleanUrl = String(themeKeyOrUrl).trim();
           if (!cleanUrl.startsWith('data:') && !cleanUrl.startsWith('http') && !cleanUrl.startsWith('url(') && !cleanUrl.startsWith('linear-gradient')) {
             cleanUrl = `url('${cleanUrl}')`;
           } else if (cleanUrl.startsWith('data:') || cleanUrl.startsWith('http')) {
@@ -772,7 +714,6 @@
           finalBg = `linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.72)), ${cleanUrl}, linear-gradient(135deg, #0f2027, #2c5364)`;
         }
 
-        // Apply style to all screens
         ['screen-lockscreen', 'screen-passcode', 'screen-homescreen'].forEach(id => {
           const el = document.getElementById(id);
           if (el) {
@@ -782,56 +723,69 @@
           }
         });
 
-        localStorage.setItem('ignatius_theme', targetKey);
+        localStorage.setItem('ignatius_wallpaper', cleanKey);
         if (window.gameState) {
-          window.gameState.wallpaper = targetKey;
+          window.gameState.wallpaper = cleanKey;
           if (typeof window.saveState === 'function') window.saveState();
         }
-
-        renderThemePickerCards(targetKey);
       };
 
-      // Toggle Theme Picker Modal
-      window.toggleThemeModal = function() {
-        if (!themeModal) return;
-        themeModal.classList.toggle('hidden');
-      };
+      // Load wallpaper default saat pertama dibuka
+      const savedWp = localStorage.getItem('ignatius_wallpaper') || 
+                      (window.gameState && window.gameState.wallpaper) || 
+                      'default ios';
+      window.setIOSWallpaper(savedWp);
 
-      // Render Theme Cards in Modal
-      function renderThemePickerCards(activeKey) {
-        if (!themeContainer) return;
-        themeContainer.innerHTML = '';
+      /* ---------- 3. AUTO-HOOK MENU PENGATURAN & TEMA TAMBAHAN ---------- */
+      function ensureColorThemeButtons() {
+        if (!appBody) return;
+        const titleEl = document.getElementById('app-window-title');
+        if (!titleEl || !titleEl.textContent.toLowerCase().includes('pengaturan')) return;
 
-        Object.keys(PRESET_THEMES).forEach(key => {
-          const theme = PRESET_THEMES[key];
-          const isSelected = key === activeKey;
+        if (document.getElementById('color-theme-preset-card')) return;
 
-          const card = document.createElement('div');
-          card.onclick = () => window.setIOSWallpaper(key);
-          card.className = `p-3 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between h-28 relative overflow-hidden active:scale-95 ${
-            isSelected ? 'border-sky-400 ring-2 ring-sky-400/50' : 'border-white/15 hover:border-white/30'
-          }`;
-          card.style.background = theme.preview;
-
-          card.innerHTML = `
-            <div class="flex justify-between items-start">
-              <span class="text-xs font-bold text-white drop-shadow-md">${theme.name}</span>
-              ${isSelected ? '<i class="fa-solid fa-circle-check text-white text-sm drop-shadow-md"></i>' : ''}
-            </div>
-            <div class="w-6 h-6 rounded-full border border-white/40 shadow-sm" style="background: ${theme.color}"></div>
-          `;
-
-          themeContainer.appendChild(card);
-        });
+        const card = document.createElement('div');
+        card.id = 'color-theme-preset-card';
+        card.className = 'glass-card p-4 rounded-3xl space-y-3 border border-white/10 shadow-xl mt-3';
+        card.innerHTML = `
+          <div class="flex items-center gap-2 text-xs font-bold text-white">
+            <i class="fa-solid fa-palette text-pink-400"></i>
+            <span>PILIH TEMA WARNA</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            <button onclick="window.setIOSWallpaper('pink')" class="py-2.5 px-2 bg-pink-500/20 border border-pink-500/40 hover:bg-pink-500/30 text-pink-300 font-bold text-[11px] rounded-xl transition-all active:scale-95">Pink</button>
+            <button onclick="window.setIOSWallpaper('abu')" class="py-2.5 px-2 bg-slate-500/20 border border-slate-400/40 hover:bg-slate-500/30 text-slate-300 font-bold text-[11px] rounded-xl transition-all active:scale-95">Minimal Gray</button>
+            <button onclick="window.setIOSWallpaper('emerald')" class="py-2.5 px-2 bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500/30 text-emerald-300 font-bold text-[11px] rounded-xl transition-all active:scale-95">Emerald</button>
+            <button onclick="window.setIOSWallpaper('sunset beach')" class="py-2.5 px-2 bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500/30 text-amber-300 font-bold text-[11px] rounded-xl transition-all active:scale-95">Sunset</button>
+            <button onclick="window.setIOSWallpaper('cyber city')" class="py-2.5 px-2 bg-purple-500/20 border border-purple-500/40 hover:bg-purple-500/30 text-purple-300 font-bold text-[11px] rounded-xl transition-all active:scale-95">Cyber Neon</button>
+            <button onclick="window.setIOSWallpaper('default ios')" class="py-2.5 px-2 bg-sky-500/20 border border-sky-500/40 hover:bg-sky-500/30 text-sky-300 font-bold text-[11px] rounded-xl transition-all active:scale-95">Default iOS</button>
+          </div>
+        `;
+        appBody.appendChild(card);
       }
 
-      // Load wallpaper/theme awal
-      const savedTheme = localStorage.getItem('ignatius_theme') || 
-                        (window.gameState && window.gameState.wallpaper) || 
-                        'pink';
-      window.setIOSWallpaper(savedTheme);
+      // Intercept klik tombol preset bawaan di menu Pengaturan
+      document.addEventListener('click', function(e) {
+        const btn = e.target.closest('button');
+        if (!btn) return;
 
-      /* ---------- 3. DYNAMIC ISLAND ---------- */
+        const text = btn.textContent.trim().toLowerCase();
+        if (PRESET_THEMES[text]) {
+          window.setIOSWallpaper(text);
+          if (window.showIOSNotification) {
+            window.showIOSNotification('Tema Berhasil Diganti', `Wallpaper diubah ke ${btn.textContent.trim()}`, 'Pengaturan iOS', 'fa-palette');
+          }
+        }
+      });
+
+      if (appBody) {
+        const observer = new MutationObserver(function() {
+          ensureColorThemeButtons();
+        });
+        observer.observe(appBody, { childList: true, subtree: true });
+      }
+
+      /* ---------- 4. DYNAMIC ISLAND ---------- */
       let islandTimer = null;
 
       function expandIsland(message, iconClass){
@@ -868,7 +822,7 @@
 
       window.ignatiusDynamicIsland = expandIsland;
 
-      /* ---------- 4. SWIPE TO DELETE NOTIFICATION SYSTEM ---------- */
+      /* ---------- 5. SWIPE TO DELETE NOTIFICATION SYSTEM ---------- */
       function checkNotificationCount() {
         if (!lockStack || !notiHeader) return;
         if (lockStack.children.length > 0) {
@@ -979,7 +933,7 @@
 
       window.ignatiusLockNotification = addLockNotification;
 
-      /* ---------- 5. TOAST NOTIFICATIONS BRIDGE ---------- */
+      /* ---------- 6. TOAST NOTIFICATIONS BRIDGE ---------- */
       let lastText = "";
       let lastSeen = 0;
 
