@@ -12,6 +12,9 @@ const MessagesModule = {
                 messagesHistory: {}
             };
         }
+        if (!window.gameState.chats.messagesHistory) {
+            window.gameState.chats.messagesHistory = {};
+        }
     },
 
     addContactPrompt() {
@@ -19,27 +22,29 @@ const MessagesModule = {
         const targetNik = prompt("Masukkan NIK / ID Telegram Warga yang mau di-chat:");
         if (!targetNik) return;
 
-        const existing = window.gameState.chats.contacts.find(c => c.nik === targetNik);
+        const cleanNik = targetNik.trim();
+        const existing = window.gameState.chats.contacts.find(c => c.nik === cleanNik);
+
         if (existing) {
-            this.openChatRoom(targetNik);
+            this.openChatRoom(cleanNik);
             return;
         }
 
-        const name = prompt("Nama Kontak (Opsional):") || `Warga (${targetNik})`;
+        const name = prompt("Nama Kontak (Opsional):") || `Warga (${cleanNik})`;
         const newContact = {
-            nik: targetNik,
+            nik: cleanNik,
             name: name,
             avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=10b981&color=fff`
         };
 
         window.gameState.chats.contacts.push(newContact);
-        if (!window.gameState.chats.messagesHistory[targetNik]) {
-            window.gameState.chats.messagesHistory[targetNik] = [];
+        if (!window.gameState.chats.messagesHistory[cleanNik]) {
+            window.gameState.chats.messagesHistory[cleanNik] = [];
         }
 
         if (typeof window.saveState === 'function') window.saveState();
         if (typeof showToast === 'function') showToast(`Kontak ${name} berhasil ditambahkan!`, 'success');
-        this.openChatRoom(targetNik);
+        this.openChatRoom(cleanNik);
     },
 
     openChatRoom(nik) {
@@ -70,6 +75,7 @@ const MessagesModule = {
             window.gameState.chats.messagesHistory[activeNik] = [];
         }
 
+        // Simpan pesan murni ke NIK penerima spesifik
         window.gameState.chats.messagesHistory[activeNik].push({
             sender: 'me',
             text: text,
@@ -87,6 +93,7 @@ const MessagesModule = {
         const activeNik = window.gameState.chats.activeChatNik;
         const contacts = window.gameState.chats.contacts || [];
 
+        // 1. TAMPILAN RUANG CHAT DENGAN NIK TERTENTU
         if (activeNik) {
             const contact = contacts.find(c => c.nik === activeNik) || { name: `Warga (${activeNik})`, nik: activeNik, avatar: 'https://ui-avatars.com/api/?name=Warga' };
             const msgs = window.gameState.chats.messagesHistory[activeNik] || [];
@@ -125,7 +132,7 @@ const MessagesModule = {
 
                     <div class="flex gap-2 pt-1 border-t border-white/10 shrink-0">
                         <input type="text" id="chat-input-msg" onkeydown="if(event.key==='Enter') MessagesModule.sendMessage()" placeholder="Ketik pesan..." class="flex-1 px-3 py-2.5 bg-slate-900 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500">
-                        <button onclick="MessagesModule.sendMessage()" class="px-3.5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg flex items-center justify-center">
+                        <button onclick="MessagesModule.sendMessage()" class="px-3.5 py-2.5 bg-emerald-500 text-slate-950 font-bold text-xs rounded-xl shadow-lg flex items-center justify-center">
                             <i class="fa-solid fa-paper-plane"></i>
                         </button>
                     </div>
@@ -133,6 +140,7 @@ const MessagesModule = {
             `;
         }
 
+        // 2. TAMPILAN DAFTAR KONTAK & CHAT MASUK
         let contactsHtml = '';
         if (contacts.length === 0) {
             contactsHtml = `<p class="text-[10px] text-slate-500 text-center py-8">Belum ada kontak. Klik "+ Tambah Teman" untuk mulai chat!</p>`;
@@ -173,9 +181,7 @@ const MessagesModule = {
 
                 <div class="space-y-2">
                     <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">💬 Daftar Obrolan & Kontak</h4>
-                    <div class="space-y-2">
-                        ${contactsHtml}
-                    </div>
+                    <div class="space-y-2">${contactsHtml}</div>
                 </div>
             </div>
         `;
