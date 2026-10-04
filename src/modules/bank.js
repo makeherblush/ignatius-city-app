@@ -16,12 +16,10 @@ const BankModule = {
         }
 
         if (!window.gameState.economy.bankAccount) {
-            const userNik = window.gameState?.user?.identity?.nik || 'TG-90128';
             window.gameState.economy.bankAccount = {
                 accountNumber: 'CP-' + Math.floor(10000 + Math.random() * 90000),
                 lastTickTimestamp: Date.now(),
                 activeLoan: 0,
-                loanInterestRate: 0.1, // 10% Bunga Pinjaman
                 timeDeposits: [], // Deposito Berjangka
                 mutationHistory: [] // Riwayat Mutasi Rekening
             };
@@ -34,8 +32,7 @@ const BankModule = {
         if (!Array.isArray(acc.mutationHistory)) acc.mutationHistory = [];
     },
 
-    // --- 2. ENGINE BUNGA & PAJAK REAL-TIME (TICKER SYSTEM) ---
-    // Dipanggil otomatis setiap interval waktu real-time
+    // --- 2. ENGINE BUNGA & PAJAK HARIAN (86.400 DETIK / HARI) ---
     processRealtimeBanking() {
         this.ensureBankState();
 
@@ -44,39 +41,38 @@ const BankModule = {
         const lastTick = acc.lastTickTimestamp || now;
         const elapsedSeconds = Math.floor((now - lastTick) / 1000);
 
-        // Interval perhitungan: Setiap 60 detik (1 Menit)
-        const INTERVAL_SEC = 60;
+        // Interval perhitungan: 1 Hari = 86.400 detik
+        const SECONDS_PER_DAY = 86400;
 
-        if (elapsedSeconds >= INTERVAL_SEC) {
-            const cycles = Math.floor(elapsedSeconds / INTERVAL_SEC);
+        if (elapsedSeconds >= SECONDS_PER_DAY) {
+            const daysPassed = Math.floor(elapsedSeconds / SECONDS_PER_DAY);
             acc.lastTickTimestamp = now;
 
             let updated = false;
 
-            // A. PERHITUNGAN BUNGA TABUNGAN REALTIME (1% PER CYCLE ON SAVINGS)
+            // A. BUNGA TABUNGAN HARIAN (0.2% PER HARI)
             const savings = window.gameState.economy.savingsBalance || 0;
             if (savings > 0) {
-                const interestRatePerCycle = 0.01; // 1% per menit
-                const totalInterest = Math.floor(savings * interestRatePerCycle * cycles);
+                const dailyInterestRate = 0.002; // 0.2% per hari
+                const totalInterest = Math.floor(savings * dailyInterestRate * daysPassed);
 
                 if (totalInterest > 0) {
                     window.gameState.economy.savingsBalance += totalInterest;
-                    this.addMutationLog('KREDIT', `Bunga Realtime Tabungan (${cycles}x)`, totalInterest);
+                    this.addMutationLog('KREDIT', `Bunga Harian Tabungan (${daysPassed} hari)`, totalInterest);
                     updated = true;
                     if (typeof showToast === 'function') {
-                        showToast(`💰 Bunga Realtime Tabungan Masuk (+${totalInterest.toLocaleString()} C)`, 'success');
+                        showToast(`💰 Bunga Harian Tabungan Masuk (+${totalInterest.toLocaleString()} C)`, 'success');
                     }
                 }
             }
 
-            // B. PERHITUNGAN PAJAK KEKAYAAN & BIYA ADMIN REALTIME (0.2% PER CYCLE jika kekayaan > 10.000 C)
+            // B. PAJAK KEKAYAAN HARIAN (0.05% PER HARI JIKA KEKAYAAN > 25.000 C)
             const totalWealth = (window.gameState.crest || 0) + (window.gameState.economy.savingsBalance || 0);
-            if (totalWealth >= 10000) {
-                const taxRatePerCycle = 0.002; // 0.2% per menit
-                const totalTax = Math.floor(totalWealth * taxRatePerCycle * cycles);
+            if (totalWealth >= 25000) {
+                const dailyTaxRate = 0.0005; // 0.05% per hari
+                const totalTax = Math.floor(totalWealth * dailyTaxRate * daysPassed);
 
                 if (totalTax > 0) {
-                    // Potong dari saldo utama terlebih dahulu, jika kurang potong dari tabungan
                     if (window.gameState.crest >= totalTax) {
                         window.gameState.crest -= totalTax;
                     } else {
@@ -85,10 +81,25 @@ const BankModule = {
                         window.gameState.economy.savingsBalance = Math.max(0, window.gameState.economy.savingsBalance - remainder);
                     }
 
-                    this.addMutationLog('DEBIT', `Pajak Kekayaan Kota (${cycles}x)`, totalTax);
+                    this.addMutationLog('DEBIT', `Pajak Kekayaan Harian (${daysPassed} hari)`, totalTax);
                     updated = true;
                     if (typeof showToast === 'function') {
                         showToast(`🏛️ Pajak Kekayaan Terpotong (-${totalTax.toLocaleString()} C)`, 'info');
+                    }
+                }
+            }
+
+            // C. BUNGA PINJAMAN HARIAN (0.5% PER HARI JIKA ADA HUTANG)
+            if (acc.activeLoan > 0) {
+                const dailyLoanInterestRate = 0.005; // 0.5% per hari
+                const loanInterest = Math.floor(acc.activeLoan * dailyLoanInterestRate * daysPassed);
+
+                if (loanInterest > 0) {
+                    acc.activeLoan += loanInterest;
+                    this.addMutationLog('DEBIT', `Bunga Pinjaman Harian (${daysPassed} hari)`, loanInterest);
+                    updated = true;
+                    if (typeof showToast === 'function') {
+                        showToast(`⚠️ Bunga Pinjaman Bertambah (+${loanInterest.toLocaleString()} C Tagihan)`, 'warning');
                     }
                 }
             }
@@ -99,18 +110,18 @@ const BankModule = {
             }
         }
 
-        // C. CEK JATUH TEMPO DEPOSITO BERJANGKA REALTIME
+        // D. CEK JATUH TEMPO DEPOSITO BERJANGKA
         this.checkTimeDeposits();
     },
 
-    // Inisialisasi Interval Ticker Realtime Tepat Saat Game Dibuka
+    // Inisialisasi Ticker
     initRealtimeTicker() {
         this.ensureBankState();
         this.processRealtimeBanking();
 
         if (this.timerInterval) clearInterval(this.timerInterval);
         
-        // Ticker berjalan di background setiap 10 detik
+        // Ticker berjalan mengecek background setiap 10 detik
         this.timerInterval = setInterval(() => {
             BankModule.processRealtimeBanking();
         }, 10000);
@@ -120,17 +131,16 @@ const BankModule = {
     addMutationLog(type, description, amount) {
         this.ensureBankState();
         const acc = window.gameState.economy.bankAccount;
-        const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const timeStr = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 
         acc.mutationHistory.unshift({
             id: 'MUT-' + Date.now(),
-            type: type, // 'KREDIT' (+ masuk) atau 'DEBIT' (- keluar)
+            type: type, // 'KREDIT' atau 'DEBIT'
             description: description,
             amount: amount,
             time: timeStr
         });
 
-        // Simpan Maksimal 20 Mutasi Terakhir
         if (acc.mutationHistory.length > 20) {
             acc.mutationHistory.pop();
         }
@@ -147,9 +157,6 @@ const BankModule = {
         const bankAccount = window.gameState?.economy?.bankAccount;
         const deposits = bankAccount.timeDeposits || [];
         const history = bankAccount.mutationHistory || [];
-
-        // Total Kekayaan Warga
-        const totalWealth = crest + savings;
 
         // Render Mutasi History
         let historyHtml = '';
@@ -183,10 +190,14 @@ const BankModule = {
                 const isReady = now >= dep.maturesAt;
                 const remainingSec = Math.max(0, Math.ceil((dep.maturesAt - now) / 1000));
 
+                const hoursLeft = Math.floor(remainingSec / 3600);
+                const minsLeft = Math.floor((remainingSec % 3600) / 60);
+                const timeText = hoursLeft > 0 ? `${hoursLeft}j ${minsLeft}m` : `${minsLeft}m ${remainingSec % 60}s`;
+
                 depositsHtml += `
                     <div class="glass-card p-2.5 rounded-xl flex items-center justify-between text-xs border border-amber-500/30">
                         <div>
-                            <h6 class="font-bold text-white text-[11px]">${dep.title} (+${dep.returnRate}% Return)</h6>
+                            <h6 class="font-bold text-white text-[11px]">${dep.title} (+${dep.returnRate}% Profit)</h6>
                             <span class="text-[9px] text-slate-400 font-mono">Modal: ${dep.amount.toLocaleString()} C ➔ Hasil: ${dep.payout.toLocaleString()} C</span>
                         </div>
                         ${isReady ? `
@@ -195,7 +206,7 @@ const BankModule = {
                             </button>
                         ` : `
                             <span class="text-[9px] font-mono text-amber-300 font-bold px-2 py-0.5 bg-amber-500/20 rounded">
-                                ⏳ ${remainingSec}s lagi
+                                ⏳ ${timeText}
                             </span>
                         `}
                     </div>
@@ -212,7 +223,7 @@ const BankModule = {
                             <i class="fa-solid fa-building-columns"></i> BANK CENTRAL IGNATIUS
                         </span>
                         <span class="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-[8px] font-bold rounded border border-emerald-500/30 animate-pulse">
-                            REALTIME ONLINE
+                            SISTEM HARIAN ONLINE
                         </span>
                     </div>
 
@@ -233,15 +244,15 @@ const BankModule = {
                     </div>
                 </div>
 
-                <!-- DOMPET TABUNGAN REALTIME -->
+                <!-- DOMPET TABUNGAN HARIAN -->
                 <div class="glass-ios p-4 rounded-3xl border border-emerald-500/30 space-y-3 bg-gradient-to-br from-slate-900 via-emerald-950/20 to-slate-900">
                     <div class="flex justify-between items-center">
                         <div>
-                            <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider block">💰 Saldo Tabungan Berbunga Realtime</span>
+                            <span class="text-[9px] font-bold text-emerald-400 uppercase tracking-wider block">💰 Saldo Tabungan Berbunga</span>
                             <h3 class="text-lg font-mono font-bold text-white">${savings.toLocaleString()} <span class="text-xs text-emerald-400">C</span></h3>
                         </div>
                         <span class="px-2 py-1 bg-emerald-500/20 text-emerald-300 text-[8px] font-bold rounded-lg border border-emerald-500/30">
-                            Bunga +1%/Menit
+                            Bunga +0.2%/Hari
                         </span>
                     </div>
 
@@ -255,7 +266,7 @@ const BankModule = {
                     </div>
                 </div>
 
-                <!-- LOKET FITUR BARU: TRANSFER NIK & PINJAMAN KREDIT -->
+                <!-- TRANSFER & PINJAMAN HARIAN -->
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="BankModule.transferNikPrompt()" class="p-3 glass-ios rounded-2xl border border-sky-500/30 flex items-center gap-2.5 hover:border-sky-400 transition-all text-left">
                         <div class="w-9 h-9 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center text-base shrink-0">
@@ -273,31 +284,31 @@ const BankModule = {
                         </div>
                         <div>
                             <h5 class="text-xs font-bold text-white">Pinjaman Kredit</h5>
-                            <span class="text-[8px] text-slate-400">Hutang: ${bankAccount.activeLoan.toLocaleString()} C</span>
+                            <span class="text-[8px] text-slate-400">Tagihan: ${bankAccount.activeLoan.toLocaleString()} C</span>
                         </div>
                     </button>
                 </div>
 
-                <!-- INVESTASI DEPOSITO BERJANGKA (HIGH YIELD) -->
+                <!-- DEPOSITO HARIAN -->
                 <div class="glass-ios p-4 rounded-3xl border border-amber-500/30 space-y-3">
                     <div class="flex justify-between items-center">
                         <h4 class="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
-                            <i class="fa-solid fa-chart-line"></i> Deposito Berjangka (High Yield)
+                            <i class="fa-solid fa-chart-line"></i> Deposito Berjangka Harian
                         </h4>
-                        <button onclick="BankModule.createDepositPrompt()" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[9px] rounded-lg shadow-md">+ Investasi</button>
+                        <button onclick="BankModule.createDepositPrompt()" class="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[9px] rounded-lg shadow-md">+ Buka Deposito</button>
                     </div>
                     <div class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                         ${depositsHtml}
                     </div>
                 </div>
 
-                <!-- MUTASI REKENING REALTIME LOG -->
+                <!-- MUTASI REKENING LOG -->
                 <div class="glass-ios p-4 rounded-3xl border border-white/10 space-y-2">
                     <div class="flex justify-between items-center border-b border-white/10 pb-2">
                         <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
                             <i class="fa-solid fa-receipt text-sky-400"></i> Mutasi Transaksi Rekening
                         </h4>
-                        <span class="text-[8px] text-slate-500 font-mono">Realtime Log</span>
+                        <span class="text-[8px] text-slate-500 font-mono">Log Harian</span>
                     </div>
                     <div class="space-y-1 max-h-40 overflow-y-auto pr-1">
                         ${historyHtml}
@@ -359,7 +370,7 @@ const BankModule = {
         if (typeof openApp === 'function') openApp('bank');
     },
 
-    // --- 7. FITUR NEW: TRANSFER P2P KE NIK WARGA ---
+    // --- 7. TRANSFER NIK ---
     transferNikPrompt() {
         this.ensureBankState();
         const targetNik = prompt("Masukkan NIK / ID Telegram Warga Penerima:");
@@ -388,7 +399,7 @@ const BankModule = {
         if (typeof openApp === 'function') openApp('bank');
     },
 
-    // --- 8. FITUR NEW: PINJAMAN KREDIT BANK ---
+    // --- 8. PINJAMAN KREDIT HARIAN ---
     loanPrompt() {
         this.ensureBankState();
         const acc = window.gameState.economy.bankAccount;
@@ -411,7 +422,7 @@ const BankModule = {
             return;
         }
 
-        const amountStr = prompt("Masukkan Jumlah Pinjaman Kredit (Maksimal 20.000 C | Bunga 10%):");
+        const amountStr = prompt("Masukkan Jumlah Pinjaman Kredit (Maksimal 20.000 C | Bunga 5% Awal):");
         if (!amountStr) return;
         const amount = parseInt(amountStr);
 
@@ -420,7 +431,7 @@ const BankModule = {
             return;
         }
 
-        const totalToRepay = Math.floor(amount * 1.10); // +10% Bunga Kredit
+        const totalToRepay = Math.floor(amount * 1.05); // +5% Biaya Bunga Awal
         acc.activeLoan = totalToRepay;
         window.gameState.crest += amount;
 
@@ -428,24 +439,34 @@ const BankModule = {
 
         if (typeof window.saveState === 'function') window.saveState();
         if (typeof playAudioSfx === 'function') playAudioSfx('cash');
-        if (typeof showToast === 'function') showToast(`Pinjaman ${amount.toLocaleString()} C cair! Tagihan pelunasan: ${totalToRepay.toLocaleString()} C`, 'success');
+        if (typeof showToast === 'function') showToast(`Pinjaman ${amount.toLocaleString()} C cair! Tagihan awal: ${totalToRepay.toLocaleString()} C`, 'success');
         if (typeof openApp === 'function') openApp('bank');
     },
 
-    // --- 9. FITUR NEW: INVESTASI DEPOSITO BERJANGKA ---
+    // --- 9. DEPOSITO BERJANGKA HARIAN ---
     createDepositPrompt() {
         this.ensureBankState();
-        const planChoice = prompt("Pilih Paket Deposito:\n1. Paket Kilat (1 Menit | Return 15%)\n2. Paket Super (3 Menit | Return 40%)\n\nKetik angka 1 atau 2:");
+        const planChoice = prompt(
+            "Pilih Paket Deposito Harian:\n" +
+            "1. Paket Kilat (1 Hari | Profit 2%)\n" +
+            "2. Paket Medium (3 Hari | Profit 7%)\n" +
+            "3. Paket Panjang (7 Hari | Profit 18%)\n\n" +
+            "Ketik angka 1, 2, atau 3:"
+        );
         if (!planChoice) return;
 
-        let durationSec = 60;
-        let returnRate = 15;
-        let title = 'Deposito Kilat 1m';
+        let durationDays = 1;
+        let returnRate = 2;
+        let title = 'Deposito Harian 1 Hari';
 
         if (planChoice === '2') {
-            durationSec = 180;
-            returnRate = 40;
-            title = 'Deposito Super 3m';
+            durationDays = 3;
+            returnRate = 7;
+            title = 'Deposito Medium 3 Hari';
+        } else if (planChoice === '3') {
+            durationDays = 7;
+            returnRate = 18;
+            title = 'Deposito Panjang 7 Hari';
         }
 
         const amountStr = prompt("Masukkan Modal Deposito (Crest):");
@@ -464,6 +485,7 @@ const BankModule = {
 
         window.gameState.crest -= amount;
         const payout = Math.floor(amount * (1 + returnRate / 100));
+        const durationSec = durationDays * 86400;
 
         const newDep = {
             id: 'DEP-' + Date.now(),
@@ -479,7 +501,7 @@ const BankModule = {
         this.addMutationLog('DEBIT', `Investasi ${title}`, amount);
 
         if (typeof window.saveState === 'function') window.saveState();
-        if (typeof showToast === 'function') showToast(`Deposito ${amount.toLocaleString()} C aktif! Tunggu ${durationSec} detik.`, 'success');
+        if (typeof showToast === 'function') showToast(`Deposito ${amount.toLocaleString()} C aktif selama ${durationDays} hari.`, 'success');
         if (typeof openApp === 'function') openApp('bank');
     },
 
@@ -524,7 +546,7 @@ const BankModule = {
     }
 };
 
-// Inisialisasi Ticker Engine Realtime Tepat Saat Modul Dibaca
+// Inisialisasi Ticker Engine Realtime
 BankModule.initRealtimeTicker();
 
 window.BankModule = BankModule;
