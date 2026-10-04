@@ -25,7 +25,7 @@
             --ios-bounce: cubic-bezier(0.175, 0.885, 0.32, 1.275);
             --wallpaper-url: url('assets/images/wallpaper.png');
             --bg-app-dark: #090a0f;
-            --glass-card-bg: rgba(26, 30, 42, 0.82);
+            --glass-card-bg: rgba(26, 30, 42, 0.85);
             --glass-card-border: rgba(255, 255, 255, 0.14);
         }
 
@@ -48,7 +48,12 @@
             font-family: var(--ios-font) !important;
         }
 
-        /* --- CHASSIS STRUCTURAL FIX --- */
+        /* FIX TAILWIND HIDDEN CLASS PRIORITY */
+        .hidden {
+            display: none !important;
+        }
+
+        /* --- CHASSIS STRUCTURAL --- */
         #iphone-chassis {
             width: 100% !important;
             max-width: 402px !important;
@@ -81,12 +86,12 @@
             top: 0 !important;
             left: 0 !important;
             right: 0 !important;
-            z-index: 100 !important; /* Wajib paling atas melebihi semua layar aplikasi */
+            z-index: 100 !important;
             height: 54px !important;
             padding-top: max(12px, env(safe-area-inset-top)) !important;
             padding-left: 22px !important;
             padding-right: 22px !important;
-            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0)) !important;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0)) !important;
             pointer-events: none !important;
             display: flex !important;
             align-items: center !important;
@@ -122,17 +127,16 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8), 0 0 12px rgba(10, 132, 255, 0.2) !important;
         }
 
-        /* --- UNIFIED WALLPAPER UTILITY CLASS --- */
-        .ios-wallpaper-bg {
-            background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.72)), var(--wallpaper-url) !important;
-            background-size: cover !important;
-            background-position: center !important;
-            background-repeat: no-repeat !important;
+        /* --- 1. PASSCODE SCREEN (WALLPAPER + FROSTED GLASS) --- */
+        #screen-passcode:not(.hidden) {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            align-items: center !important;
         }
 
-        /* --- FIX 1: PASSCODE SCREEN WITH WALLPAPER (NO MORE BLACK SCREEN) --- */
         #screen-passcode {
-            background-image: linear-gradient(to bottom, rgba(10, 15, 25, 0.58), rgba(0, 0, 0, 0.88)), var(--wallpaper-url) !important;
+            background-image: linear-gradient(to bottom, rgba(10, 15, 25, 0.55), rgba(0, 0, 0, 0.88)), var(--wallpaper-url) !important;
             background-size: cover !important;
             background-position: center !important;
             background-repeat: no-repeat !important;
@@ -141,7 +145,7 @@
             padding: 0 24px !important;
             padding-top: max(74px, calc(env(safe-area-inset-top) + 54px)) !important;
             padding-bottom: max(28px, env(safe-area-inset-bottom)) !important;
-            z-index: 45 !important;
+            z-index: 40 !important;
         }
 
         #screen-passcode h3 {
@@ -180,7 +184,13 @@
             background: rgba(255, 255, 255, 0.32) !important;
         }
 
-        /* --- FIX 2: LOCKSCREEN DECORATION --- */
+        /* --- 2. LOCKSCREEN --- */
+        #screen-lockscreen:not(.hidden) {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+        }
+
         #screen-lockscreen {
             background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.68)), var(--wallpaper-url) !important;
             background-size: cover !important;
@@ -209,7 +219,13 @@
             text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
         }
 
-        /* --- FIX 3: HOMESCREEN & DOCK --- */
+        /* --- 3. HOMESCREEN & DOCK --- */
+        #screen-homescreen:not(.hidden) {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+        }
+
         #screen-homescreen {
             background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.72)), var(--wallpaper-url) !important;
             background-size: cover !important;
@@ -258,15 +274,18 @@
             text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8) !important;
         }
 
-        /* --- FIX 4: APP WINDOW HEADER OVERLAP & SOLID BACKGROUND BUG --- */
+        /* --- 4. APP WINDOW FIX (ONLY SHOW WHEN NOT .HIDDEN) --- */
+        #screen-app-window:not(.hidden) {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+
         #screen-app-window {
             position: absolute !important;
             inset: 0 !important;
             z-index: 35 !important;
-            background: var(--bg-app-dark) !important; /* Solid dark background agar tidak tembus ke homescreen */
-            display: flex !important;
-            flex-direction: column !important;
-            padding-top: 56px !important; /* Jarak aman di bawah Status Bar (54px) */
+            background: var(--bg-app-dark) !important;
+            padding-top: 56px !important;
             padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
         }
 
@@ -399,7 +418,7 @@
             margin-top: 2px;
         }
 
-        /* Custom Scrollbar for Inner Apps */
+        /* Custom Scrollbar */
         #app-window-body::-webkit-scrollbar,
         .overflow-y-auto::-webkit-scrollbar {
             width: 4px;
@@ -473,7 +492,7 @@
         <div class="flex-1 w-full h-full relative overflow-hidden pt-10 pb-6">
 
             <!-- 1. REGISTRATION SCREEN -->
-            <div id="screen-register" class="absolute inset-0 z-40 bg-slate-950 p-6 flex flex-col justify-between overflow-y-auto hidden pt-14 pb-8">
+            <div id="screen-register" class="absolute inset-0 z-45 bg-slate-950 p-6 flex flex-col justify-between overflow-y-auto hidden pt-14 pb-8">
                 <div class="space-y-6">
                     <!-- Header Avatar & Welcome -->
                     <div class="text-center space-y-3">
@@ -561,7 +580,7 @@
                 </div>
             </div>
 
-            <!-- 3. PASSCODE KEYPAD (DENGAN BACKGROUND WALLPAPER BERLapis FROSTED GLASS) -->
+            <!-- 3. PASSCODE KEYPAD (Layar PIN ber-wallpaper + FROSTED GLASS) -->
             <div id="screen-passcode" class="absolute inset-0 z-40 flex flex-col justify-between items-center text-white hidden">
                 <div class="pt-8 text-center space-y-3">
                     <div class="w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/30 shadow-lg">
@@ -635,7 +654,7 @@
                 </div>
             </div>
 
-            <!-- 5. APP WINDOW MODAL (TIDAK LAGI OVERLAP STATUS BAR & BACKGROUND TIDAK TEMBUS) -->
+            <!-- 5. APP WINDOW MODAL -->
             <div id="screen-app-window" class="absolute inset-0 z-35 flex flex-col hidden">
                 <div class="px-4 py-3 border-b border-white/10 flex items-center justify-between shrink-0">
                     <button onclick="closeApp()" class="text-xs font-semibold text-sky-400 flex items-center gap-1 py-1 hover:text-sky-300 transition-all">
@@ -708,7 +727,7 @@
 
       window.ignatiusDynamicIsland = expandIsland;
 
-      /* ---------- iPhone-style Lock Screen Notification ---------- */
+      /* ---------- Lock Screen Notification ---------- */
       function nowText(){
         const d = new Date();
         return d.toLocaleTimeString("id-ID", {
@@ -745,7 +764,6 @@
 
         lockStack.prepend(item);
 
-        /* Simpan maksimal 3 notifikasi terakhir */
         while (lockStack.children.length > 3) {
           lockStack.lastElementChild.remove();
         }
@@ -755,7 +773,7 @@
 
       window.ignatiusLockNotification = addLockNotification;
 
-      /* ---------- Bridge Existing Toast Notifications ---------- */
+      /* ---------- Toast Notifications Bridge ---------- */
       let lastText = "";
       let lastSeen = 0;
 
@@ -809,7 +827,7 @@
     })();
     </script>
 
-    <!-- SCRIPT LOADERS (DATABASE & MODULES) -->
+    <!-- SCRIPT LOADERS -->
     <script src="src/database.js"></script>
     <script src="src/state.js"></script>
     <script src="src/modules/admin.js"></script>
