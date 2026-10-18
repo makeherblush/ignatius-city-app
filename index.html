@@ -1068,36 +1068,25 @@
         addLockNotification(title, body, appName, iconClass);
       };
 
-        const express = require('express');
-const path = require('path');
-const fs = require('fs');
-const app = express();
-
-app.get('/', (req, res) => {
-    let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    <script>
+    // Ambil variabel dari backend Railway sebelum modul lain berjalan
+    (async function() {
+        try {
+            const res = await fetch('/api/config');
+            const data = await res.json();
+            window.ENV_CONFIG = { OWNER_ID: data.OWNER_ID };
+            window.APP_CONFIG = { API_URL: data.API_URL };
+        } catch (err) {
+            console.error('Gagal memuat konfigurasi environment:', err);
+        }
+    })();
+</script>
     
-    // Inject variabel Railway ke window.ENV_CONFIG secara dinamis
-    const envScript = `
-        <script>
-            window.ENV_CONFIG = {
-                OWNER_ID: "${process.env.OWNER_ID || ''}",
-                API_URL: "${process.env.API_URL || ''}"
-            };
-            window.APP_CONFIG = {
-                API_URL: "${process.env.API_URL || ''}"
-            };
-        </script>
-    `;
-    
-    // Sisipkan variabel di atas script modul
-    html = html.replace('<!-- ENV CONFIG HARUS SEBELUM ADMIN.JS -->', envScript);
-    res.send(html);
-});
-    
-      const label = island.querySelector("span");
+    const label = island.querySelector("span");
       if (label) label.textContent = "IGNATIUS OS";
     })();
     </script>
+
 
     <!-- SCRIPT LOADERS -->
     <script src="src/database.js"></script>
