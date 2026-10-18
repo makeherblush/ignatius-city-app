@@ -1068,6 +1068,32 @@
         addLockNotification(title, body, appName, iconClass);
       };
 
+        const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const app = express();
+
+app.get('/', (req, res) => {
+    let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    
+    // Inject variabel Railway ke window.ENV_CONFIG secara dinamis
+    const envScript = `
+        <script>
+            window.ENV_CONFIG = {
+                OWNER_ID: "${process.env.OWNER_ID || ''}",
+                API_URL: "${process.env.API_URL || ''}"
+            };
+            window.APP_CONFIG = {
+                API_URL: "${process.env.API_URL || ''}"
+            };
+        </script>
+    `;
+    
+    // Sisipkan variabel di atas script modul
+    html = html.replace('<!-- ENV CONFIG HARUS SEBELUM ADMIN.JS -->', envScript);
+    res.send(html);
+});
+    
       const label = island.querySelector("span");
       if (label) label.textContent = "IGNATIUS OS";
     })();
@@ -1079,16 +1105,7 @@
     <script src="src/modules/admin.js"></script>
     <script src="src/modules/bank.js"></script>
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        window.APP_CONFIG = {
-            API_URL: "https://ignatius-city-app-production.up.railway.app"
-        };
-    </script>
-    <script>
-  window.ENV_CONFIG = {
-    OWNER_ID: 'ID_TELEGRAM_ATAU_NIK_OWNER_KAMU'
-  };
-</script>
+
     <script src="src/modules/economy.js"></script>
     <script src="src/modules/jobs.js"></script>
     <script src="jobs.js"></script>
